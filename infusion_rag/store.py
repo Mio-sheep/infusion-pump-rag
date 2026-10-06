@@ -8,6 +8,7 @@
 分开是因为稠密向量动辄几百 KB 到几 MB，混在一起会让主索引完全失去可读性，
 而绝大多数使用场景（纯 BM25）根本不需要它。
 """
+
 from __future__ import annotations
 
 import json
@@ -60,7 +61,7 @@ class KnowledgeIndex:
         }
 
     @classmethod
-    def from_payload(cls, payload: dict, dense: dict | None = None) -> "KnowledgeIndex":
+    def from_payload(cls, payload: dict, dense: dict | None = None) -> KnowledgeIndex:
         version = payload.get("version")
         if version != INDEX_VERSION:
             raise ValueError(
@@ -86,9 +87,7 @@ class KnowledgeIndex:
     def save(self, path: str | Path) -> Path:
         path = Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
-        self.meta.setdefault(
-            "built_at", datetime.now(timezone.utc).isoformat(timespec="seconds")
-        )
+        self.meta.setdefault("built_at", datetime.now(timezone.utc).isoformat(timespec="seconds"))
         path.write_text(
             json.dumps(self.to_payload(), ensure_ascii=False, separators=(",", ":")),
             encoding="utf-8",
@@ -108,7 +107,7 @@ class KnowledgeIndex:
         return path
 
     @classmethod
-    def load(cls, path: str | Path) -> "KnowledgeIndex":
+    def load(cls, path: str | Path) -> KnowledgeIndex:
         path = Path(path)
         if not path.exists():
             raise FileNotFoundError(

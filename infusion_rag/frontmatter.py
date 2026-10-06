@@ -35,7 +35,7 @@ class Source:
         return {"label": self.label, "url": self.url}
 
     @classmethod
-    def from_dict(cls, data: dict) -> "Source":
+    def from_dict(cls, data: dict) -> Source:
         return cls(label=str(data.get("label", "")), url=str(data.get("url", "")))
 
 
@@ -67,7 +67,7 @@ class DocMeta:
         }
 
     @classmethod
-    def from_dict(cls, data: dict) -> "DocMeta":
+    def from_dict(cls, data: dict) -> DocMeta:
         return cls(
             doc_id=data["doc_id"],
             title=data.get("title", data["doc_id"]),

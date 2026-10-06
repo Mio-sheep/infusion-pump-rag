@@ -7,6 +7,7 @@
     pip install -r requirements-optional.txt
     python -m infusion_rag.cli build --dense
 """
+
 from __future__ import annotations
 
 import math
@@ -25,7 +26,7 @@ class DenseEncoder:
 
     def __init__(self, model_name: str = DEFAULT_MODEL, batch_size: int = 32) -> None:
         try:
-            from sentence_transformers import SentenceTransformer  # type: ignore
+            from sentence_transformers import SentenceTransformer
         except ImportError as exc:  # pragma: no cover - 取决于可选依赖
             raise RuntimeError(INSTALL_HINT) from exc
 

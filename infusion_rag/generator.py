@@ -9,6 +9,7 @@
 
 无论哪种方式，出处都取自索引里的文档元数据，而不是让模型自己编。
 """
+
 from __future__ import annotations
 
 import json
@@ -144,9 +145,7 @@ def llm_answer(query: str, hits: list[Hit], cfg: LLMConfig) -> str:
 
     choices = body.get("choices") or []
     if not choices:
-        raise RuntimeError(
-            f"大模型返回内容为空：{json.dumps(body, ensure_ascii=False)[:400]}"
-        )
+        raise RuntimeError(f"大模型返回内容为空：{json.dumps(body, ensure_ascii=False)[:400]}")
     text = (choices[0].get("message") or {}).get("content", "").strip()
     if not text:
         return "大模型没有返回内容。"

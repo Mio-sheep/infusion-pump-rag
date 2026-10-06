@@ -1,4 +1,5 @@
 """BM25 与检索融合。"""
+
 from __future__ import annotations
 
 import sys
@@ -113,14 +114,12 @@ class TestRetriever(unittest.TestCase):
             self.assertEqual(rag.search("   "), [])
 
     def test_unknown_mode_is_rejected(self):
-        with temp_rag() as (rag, _, _):
-            with self.assertRaises(ValueError):
-                rag.search("阻塞", mode="magic")
+        with temp_rag() as (rag, _, _), self.assertRaises(ValueError):
+            rag.search("阻塞", mode="magic")
 
     def test_dense_mode_without_vectors_explains_how_to_fix(self):
-        with temp_rag() as (rag, _, _):
-            with self.assertRaises(RuntimeError) as ctx:
-                rag.search("阻塞", mode="dense")
+        with temp_rag() as (rag, _, _), self.assertRaises(RuntimeError) as ctx:
+            rag.search("阻塞", mode="dense")
         self.assertIn("--dense", str(ctx.exception))
 
     def test_synonyms_can_be_disabled(self):

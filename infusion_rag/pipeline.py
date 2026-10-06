@@ -53,7 +53,7 @@ class InfusionPumpRAG:
         dense: bool = False,
         dense_model: str = DEFAULT_MODEL,
         verbose: bool = False,
-    ) -> "InfusionPumpRAG":
+    ) -> InfusionPumpRAG:
         corpus_dir = Path(corpus_dir or DEFAULT_CORPUS_DIR)
         index_path = Path(index_path or DEFAULT_INDEX_PATH)
         chunk_cfg = chunk_cfg or ChunkConfig()
@@ -71,9 +71,7 @@ class InfusionPumpRAG:
         log(f"      {len(documents)} 篇文档 → {len(chunks)} 个片段")
 
         log("[2/4] 建立 BM25 索引")
-        bm25 = BM25Index(
-            k1=bm25_cfg.k1, b=bm25_cfg.b, heading_weight=bm25_cfg.heading_weight
-        ).fit(
+        bm25 = BM25Index(k1=bm25_cfg.k1, b=bm25_cfg.b, heading_weight=bm25_cfg.heading_weight).fit(
             [tokenize_for_index(c.text) for c in chunks],
             [tokenize_for_index(c.heading) for c in chunks],
         )
@@ -100,7 +98,7 @@ class InfusionPumpRAG:
                 "name": "infusion-pump-rag",
                 "version": __version__,
                 "built_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-                "corpus_dir": str(corpus_dir),
+                "corpus_dir": corpus_dir.name,
                 "n_documents": len(documents),
                 "n_chunks": len(chunks),
                 "vocab_size": len(bm25.terms),
@@ -119,7 +117,7 @@ class InfusionPumpRAG:
     @classmethod
     def load(
         cls, index_path: str | Path | None = None, *, use_synonyms: bool = True
-    ) -> "InfusionPumpRAG":
+    ) -> InfusionPumpRAG:
         path = Path(index_path or DEFAULT_INDEX_PATH)
         return cls(KnowledgeIndex.load(path), index_path=path, use_synonyms=use_synonyms)
 
@@ -188,9 +186,7 @@ class InfusionPumpRAG:
                 "n_documents": len(self.index.docs),
                 "n_chunks": len(chunks),
                 "vocab_size": self.index.vocab_size,
-                "avg_chunk_chars": round(
-                    sum(c.n_chars for c in chunks) / max(len(chunks), 1), 1
-                ),
+                "avg_chunk_chars": round(sum(c.n_chars for c in chunks) / max(len(chunks), 1), 1),
                 "min_chunk_chars": min((c.n_chars for c in chunks), default=0),
                 "max_chunk_chars": max((c.n_chars for c in chunks), default=0),
                 "n_sections": len({(c.doc_id, c.heading) for c in chunks}),

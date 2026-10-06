@@ -1,9 +1,10 @@
 """分词与索引前文本规整。"""
+
 from __future__ import annotations
 
+import sys
 import unittest
 from pathlib import Path
-import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 

@@ -11,6 +11,7 @@
 标题和正文分开存放：标题作为独立字段参与 BM25 打分（见 bm25.py 的字段化设计），
 正文里不再重复写一遍标题。
 """
+
 from __future__ import annotations
 
 import re
@@ -26,7 +27,9 @@ _SENT_SPLIT_RE = re.compile(r"(?<=[。！？；!?;])\s*|(?<=\.)\s+")
 _LINK_RE = re.compile(r"\[([^\]]*)\]\((https?://[^)\s]+)\)")
 
 # 这些标题下的内容视为出处清单，不进索引（出处由前置元数据承载）
-_SOURCE_HEADING_RE = re.compile(r"(参考来源|资料来源|主要来源|出处|参考文献|references?|sources?)", re.I)
+_SOURCE_HEADING_RE = re.compile(
+    r"(参考来源|资料来源|主要来源|出处|参考文献|references?|sources?)", re.I
+)
 
 SUPPORTED_SUFFIXES = (".md", ".markdown", ".txt")
 
@@ -57,7 +60,7 @@ class Chunk:
         }
 
     @classmethod
-    def from_dict(cls, data: dict) -> "Chunk":
+    def from_dict(cls, data: dict) -> Chunk:
         return cls(
             chunk_id=data["chunk_id"],
             doc_id=data["doc_id"],

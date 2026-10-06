@@ -1,18 +1,19 @@
 """命令行入口。
 
-    python -m infusion_rag.cli build                 构建索引
-    python -m infusion_rag.cli ask "阻塞报警怎么处理"
-    python -m infusion_rag.cli search "JJF 1259" -k 3
-    python -m infusion_rag.cli explain "阻塞报警"     看检索细节（分词、两路分数）
-    python -m infusion_rag.cli eval                  跑评测集
-    python -m infusion_rag.cli docs                  列出语料文档与出处
-    python -m infusion_rag.cli stats                 索引统计
-    python -m infusion_rag.cli serve --port 8000     网页版
+python -m infusion_rag.cli build                 构建索引
+python -m infusion_rag.cli ask "阻塞报警怎么处理"
+python -m infusion_rag.cli search "JJF 1259" -k 3
+python -m infusion_rag.cli explain "阻塞报警"     看检索细节（分词、两路分数）
+python -m infusion_rag.cli eval                  跑评测集
+python -m infusion_rag.cli docs                  列出语料文档与出处
+python -m infusion_rag.cli stats                 索引统计
+python -m infusion_rag.cli serve --port 8000     网页版
 """
 
 from __future__ import annotations
 
 import argparse
+import contextlib
 import json
 import sys
 from pathlib import Path
@@ -34,10 +35,9 @@ PROG = "infusion-rag"
 def _force_utf8() -> None:
     """Windows 控制台默认可能是 GBK，中文输出会炸。"""
     for stream in (sys.stdout, sys.stderr):
-        try:
+        # 只有真正的终端对象才有 reconfigure；重定向到文件时没有，静默跳过即可
+        with contextlib.suppress(AttributeError, ValueError):
             stream.reconfigure(encoding="utf-8")  # type: ignore[union-attr]
-        except (AttributeError, ValueError):  # pragma: no cover
-            pass
 
 
 def _print_hits(hits, *, show_text: bool = True, width: int = 400) -> None:
@@ -59,9 +59,7 @@ def _print_hits(hits, *, show_text: bool = True, width: int = 400) -> None:
 def _add_query_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("query")
     parser.add_argument("-k", "--top-k", type=int, default=4, help="返回条数")
-    parser.add_argument(
-        "-m", "--mode", default="bm25", choices=MODES, help="检索模式（默认 bm25）"
-    )
+    parser.add_argument("-m", "--mode", default="bm25", choices=MODES, help="检索模式（默认 bm25）")
     parser.add_argument("--json", action="store_true", help="输出 JSON")
 
 
@@ -84,8 +82,12 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--dense-model", default=DEFAULT_MODEL, help="稠密向量模型")
     p.add_argument("--max-chars", type=int, default=ChunkConfig.max_chars)
     p.add_argument("--overlap", type=int, default=ChunkConfig.overlap_chars)
-    p.add_argument("--heading-weight", type=float, default=BM25Config.heading_weight,
-                   help="标题字段权重（默认 2.0）")
+    p.add_argument(
+        "--heading-weight",
+        type=float,
+        default=BM25Config.heading_weight,
+        help="标题字段权重（默认 2.0）",
+    )
     p.add_argument("--k1", type=float, default=BM25Config.k1)
     p.add_argument("--b", type=float, default=BM25Config.b)
 
@@ -131,12 +133,8 @@ def main(argv: list[str] | None = None) -> int:
             rag = InfusionPumpRAG.build(
                 corpus_dir=args.corpus,
                 index_path=args.index,
-                chunk_cfg=ChunkConfig(
-                    max_chars=args.max_chars, overlap_chars=args.overlap
-                ),
-                bm25_cfg=BM25Config(
-                    k1=args.k1, b=args.b, heading_weight=args.heading_weight
-                ),
+                chunk_cfg=ChunkConfig(max_chars=args.max_chars, overlap_chars=args.overlap),
+                bm25_cfg=BM25Config(k1=args.k1, b=args.b, heading_weight=args.heading_weight),
                 dense=args.dense,
                 dense_model=args.dense_model,
                 verbose=True,
@@ -158,9 +156,7 @@ def main(argv: list[str] | None = None) -> int:
 
     # ---- 其余命令都需要已有索引 ------------------------------------------ #
     if not Path(args.index).exists():
-        print(
-            f"找不到索引 {args.index}\n请先运行：python -m {PROG} build", file=sys.stderr
-        )
+        print(f"找不到索引 {args.index}\n请先运行：python -m {PROG} build", file=sys.stderr)
         return 2
 
     rag = InfusionPumpRAG.load(args.index)
@@ -176,7 +172,9 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "ask":
         result = rag.ask(
-            args.query, top_k=args.top_k, mode=args.mode,
+            args.query,
+            top_k=args.top_k,
+            mode=args.mode,
             use_llm=False if args.no_llm else None,
         )
         if args.json:
@@ -189,8 +187,7 @@ def main(argv: list[str] | None = None) -> int:
                 f"\n生成方式：{result['generator']}    检索模式：{result['mode']}    "
                 f"命中 {result['n_hits']} 条\n"
             )
-            _print_hits(rag.search(args.query, top_k=args.top_k, mode=args.mode),
-                        show_text=False)
+            _print_hits(rag.search(args.query, top_k=args.top_k, mode=args.mode), show_text=False)
         return 0
 
     if args.command == "explain":
@@ -219,8 +216,10 @@ def main(argv: list[str] | None = None) -> int:
         print(f"\n共 {len(rows)} 篇文档\n")
         for row in rows:
             print(f"  {row['title']}")
-            print(f"    {row['path']}  ·  {row['n_chunks']} 片段 / {row['n_chars']} 字"
-                  f"  ·  更新 {row['updated'] or '未标注'}")
+            print(
+                f"    {row['path']}  ·  {row['n_chunks']} 片段 / {row['n_chars']} 字"
+                f"  ·  更新 {row['updated'] or '未标注'}"
+            )
             if row["summary"]:
                 print(f"    {row['summary']}")
             for source in row["sources"]:

@@ -1,4 +1,5 @@
 """网页版接口。用 port=0 起随机端口，避免和别的进程撞车。"""
+
 from __future__ import annotations
 
 import json
@@ -58,7 +59,7 @@ class TestPage(ServerTestCase):
         html_all = render_page(["bm25", "dense", "hybrid"])
         for mode in ("bm25", "dense", "hybrid"):
             self.assertIn(f'value="{mode}"', html_all)
-        self.assertEqual(set(MODE_LABELS) , {"bm25", "dense", "hybrid"})
+        self.assertEqual(set(MODE_LABELS), {"bm25", "dense", "hybrid"})
 
     def test_unknown_path_is_404_json(self):
         with self.assertRaises(urllib.error.HTTPError) as ctx:

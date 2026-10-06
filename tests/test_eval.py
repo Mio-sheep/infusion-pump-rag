@@ -1,7 +1,7 @@
 """评测指标本身的正确性。指标写错的评测比没有评测更糟。"""
+
 from __future__ import annotations
 
-import json
 import sys
 import tempfile
 import unittest
@@ -11,8 +11,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from infusion_rag.chunker import Chunk
 from infusion_rag.eval import (
-    Expectation,
     EvalReport,
+    Expectation,
     Question,
     QuestionResult,
     evaluate,
@@ -109,10 +109,12 @@ class TestMetrics(unittest.TestCase):
 
 class TestEvaluateLoop(unittest.TestCase):
     def test_hits_and_misses(self):
-        rag = StubRag({
-            "阻塞": [make_chunk("01", "2.1 阻塞报警")],
-            "气泡": [make_chunk("01", "2.2 气泡报警")],
-        })
+        rag = StubRag(
+            {
+                "阻塞": [make_chunk("01", "2.1 阻塞报警")],
+                "气泡": [make_chunk("01", "2.2 气泡报警")],
+            }
+        )
         questions = [
             Question(qid="a", question="阻塞", expect=[Expectation("01", "阻塞")]),
             Question(qid="b", question="气泡", expect=[Expectation("02", "气泡")]),

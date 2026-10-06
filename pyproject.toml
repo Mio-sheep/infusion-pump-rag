@@ -51,6 +51,7 @@ ignore = [
   "E501",    # 行长由 formatter 处理
   "SIM108",  # 三元表达式不一定比 if 清楚
   "B008",    # 测试里会用到
+  "RET504",  # 顺序的正则替换逐行写比嵌套调用好读
 ]
 
 [tool.ruff.lint.per-file-ignores]
@@ -58,7 +59,6 @@ ignore = [
 "infusion_rag/server.py" = ["E501"]  # 内嵌的 HTML/CSS 不按 100 列换行
 
 [tool.mypy]
-python_version = "3.9"
 files = ["infusion_rag"]
 ignore_missing_imports = true
 warn_unused_ignores = true

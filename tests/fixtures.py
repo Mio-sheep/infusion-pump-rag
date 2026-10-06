@@ -3,6 +3,7 @@
 刻意做成"小而完整"：两篇文档，带有前置元数据、表格、超长段落和一个
 "参考来源"小节，覆盖分块器里所有分支。
 """
+
 from __future__ import annotations
 
 import sys
@@ -92,7 +93,5 @@ def temp_rag(**build_kwargs):
     from infusion_rag import InfusionPumpRAG
 
     with temp_project() as (corpus, index_path):
-        rag = InfusionPumpRAG.build(
-            corpus_dir=corpus, index_path=index_path, **build_kwargs
-        )
+        rag = InfusionPumpRAG.build(corpus_dir=corpus, index_path=index_path, **build_kwargs)
         yield rag, corpus, index_path

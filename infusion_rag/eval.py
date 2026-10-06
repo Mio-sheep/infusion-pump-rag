@@ -42,16 +42,14 @@ class Question:
     note: str = ""
 
     @classmethod
-    def from_dict(cls, data: dict) -> "Question":
+    def from_dict(cls, data: dict) -> Question:
         raw = data.get("expect") or []
         expect: list[Expectation] = []
         for item in raw:
             if isinstance(item, str):
                 expect.append(Expectation(doc=item))
             else:
-                expect.append(
-                    Expectation(doc=item.get("doc", ""), section=item.get("section", ""))
-                )
+                expect.append(Expectation(doc=item.get("doc", ""), section=item.get("section", "")))
         return cls(
             qid=str(data.get("id", "")),
             question=str(data["question"]),
@@ -64,7 +62,7 @@ class Question:
 class QuestionResult:
     question: Question
     ranks: list[int] = field(default_factory=list)  # 命中期望的片段名次
-    top: list[str] = field(default_factory=list)    # 实际 top-k 的定位串
+    top: list[str] = field(default_factory=list)  # 实际 top-k 的定位串
 
     @property
     def first_rank(self) -> int | None:
@@ -149,8 +147,14 @@ def load_questions(path: str | Path) -> list[Question]:
     return questions
 
 
-def evaluate(rag, questions: list[Question], *, mode: str = "bm25",
-             top_k: int = 5, k_values: tuple[int, ...] = DEFAULT_K_VALUES) -> EvalReport:
+def evaluate(
+    rag,
+    questions: list[Question],
+    *,
+    mode: str = "bm25",
+    top_k: int = 5,
+    k_values: tuple[int, ...] = DEFAULT_K_VALUES,
+) -> EvalReport:
     """跑评测。rag 只要有 search(query, top_k, mode) 即可。"""
     results: list[QuestionResult] = []
     for question in questions:

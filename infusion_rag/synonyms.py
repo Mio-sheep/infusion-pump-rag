@@ -12,6 +12,7 @@
 会让检索变差而不是变好——比如"阻塞"和"报警"不该合并，
 "阻塞报警"这种组合应该交给字符二元组去匹配。
 """
+
 from __future__ import annotations
 
 from .tokenizer import normalize, tokenize
@@ -36,7 +37,6 @@ CONCEPTS: dict[str, tuple[str, ...]] = {
     "显示屏": ("display", "screen", "user interface", "界面", "按键", "keypad"),
     "固件": ("firmware", "software", "软件"),
     "说明书": ("user manual", "instructions", "操作手册"),
-
     # ---- 报警与故障 -------------------------------------------------- #
     "报警": ("alarm", "alert", "warning", "警报", "提示"),
     "阻塞": ("occlusion", "occluded", "blockage", "obstruction", "堵塞", "堵管"),
@@ -55,7 +55,6 @@ CONCEPTS: dict[str, tuple[str, ...]] = {
     "过热": ("overheat", "overheating", "overcharging", "过充"),
     "跌损": ("dropped", "drop", "impact", "跌落", "碰撞"),
     "进水": ("water ingress", "waterproof", "ipx", "防水", "液体渗入"),
-
     # ---- 临床与用药 -------------------------------------------------- #
     "过量输注": ("over-infusion", "over infusion", "过量"),
     "输注不足": ("under-infusion", "under infusion", "不足"),
@@ -69,7 +68,6 @@ CONCEPTS: dict[str, tuple[str, ...]] = {
     "五个正确": ("five rights", "5 rights", "五个对"),
     "交接班": ("change of shift", "handover", "交班"),
     "医嘱": ("physician order", "prescription", "处方"),
-
     # ---- 风险、法规与维护 -------------------------------------------- #
     "不良事件": ("adverse event", "adverse", "器械不良事件"),
     "召回": ("recall", "市场撤回"),

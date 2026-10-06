@@ -34,10 +34,12 @@ jobs:
       - name: 从零重建索引
         run: python -m infusion_rag.cli build
 
+      # 不能用 git diff 比较：索引里存了 built_at 墙钟时间，重建后必然不同。
+      # 这里比较的是去掉时间戳之后的完整内容。
       - name: 确认预构建索引与语料一致
         run: |
-          git diff --exit-code -- index/kb_index.json \
-            || { echo "::error::index/kb_index.json 与 data/raw 不同步，请重新运行 build 并提交"; exit 1; }
+          python -m infusion_rag.cli build --index /tmp/fresh_index.json
+          python scripts/check_index_sync.py index/kb_index.json /tmp/fresh_index.json
 
       - name: 检索冒烟测试
         run: |

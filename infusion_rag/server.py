@@ -327,12 +327,14 @@ def _make_handler(rag: InfusionPumpRAG, page: bytes, quiet: bool = False):
             try:
                 if path == "/api/search":
                     hits = rag.search(query, top_k=top_k, mode=mode)
-                    self._json({
-                        "query": query,
-                        "mode": mode,
-                        "n_hits": len(hits),
-                        "hits": [h.to_dict() for h in hits],
-                    })
+                    self._json(
+                        {
+                            "query": query,
+                            "mode": mode,
+                            "n_hits": len(hits),
+                            "hits": [h.to_dict() for h in hits],
+                        }
+                    )
                     return
 
                 flag = (params.get("llm") or ["auto"])[0]
@@ -382,7 +384,9 @@ def serve(
     httpd = make_server(rag, host, port)
 
     print("\n输液泵 / 注射泵 知识库")
-    print(f"  文档 {stats['n_documents']} 篇 · 片段 {stats['n_chunks']} 个 · 词表 {stats['vocab_size']}")
+    print(
+        f"  文档 {stats['n_documents']} 篇 · 片段 {stats['n_chunks']} 个 · 词表 {stats['vocab_size']}"
+    )
     print(f"  检索模式：{', '.join(modes)}")
     print(f"  生成方式：{'大模型 ' + llm.model if llm.enabled else '抽取式（未配置大模型）'}")
     print(f"\n  浏览器打开 http://{host}:{port}\n")

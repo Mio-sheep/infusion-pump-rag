@@ -15,9 +15,9 @@ RRF 只看名次不看分数，不需要调参，是这个场景下更稳的选�
 查询扩展：中文查询会按 synonyms.py 补上对应英文术语。语料是中英混排的，
 问"阻塞报警"时把 occlusion 一起查，召回会好一截。
 """
+
 from __future__ import annotations
 
-from .bm25 import BM25Index
 from .chunker import Chunk
 from .dense import DenseEncoder, cosine
 from .store import KnowledgeIndex
@@ -157,9 +157,7 @@ class Retriever:
             ordered = sorted(fused, key=lambda i: (-fused[i], i))[:top_k]
             score_of = lambda i: fused[i]  # noqa: E731
         else:
-            primary, scores = (
-                (bm25_rank, bm25_scores) if bm25_rank else (dense_rank, dense_scores)
-            )
+            primary, scores = (bm25_rank, bm25_scores) if bm25_rank else (dense_rank, dense_scores)
             ordered = primary[:top_k]
             score_of = lambda i: scores[i] if scores else 0.0  # noqa: E731
 

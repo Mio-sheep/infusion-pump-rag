@@ -17,6 +17,7 @@ BM25 相对 TF-IDF 余弦的好处在这里很实际：
 注意：这里对每个文档做一次 O(查询词数) 的累加，而不是用倒排表。
 在本项目的数据规模（几十到几千个片段）下这完全够用，而且代码直观得多。
 """
+
 from __future__ import annotations
 
 import math
@@ -59,21 +60,21 @@ class BM25Index:
         self,
         bodies: list[list[str]],
         headings: list[list[str]],
-    ) -> "BM25Index":
+    ) -> BM25Index:
         """bodies / headings 是已经分好词的 token 序列，两者长度必须一致。"""
         if len(bodies) != len(headings):
             raise ValueError("bodies 与 headings 数量不一致")
 
         self.n_docs = len(bodies)
         df: Counter[str] = Counter()
-        body_postings: list[dict[int, int]] = []
-        heading_postings: list[dict[int, int]] = []
+        body_counts_list: list[Counter[str]] = []
+        heading_counts_list: list[Counter[str]] = []
 
         for body, heading in zip(bodies, headings):
             body_counts = Counter(body)
             heading_counts = Counter(heading)
-            body_postings.append(body_counts)
-            heading_postings.append(heading_counts)
+            body_counts_list.append(body_counts)
+            heading_counts_list.append(heading_counts)
             df.update(body_counts.keys() | heading_counts.keys())
 
         # 词表按 (文档频率降序, 词形升序) 排列，保证索引构建可复现
@@ -82,19 +83,17 @@ class BM25Index:
         self.term_index = {term: i for i, term in enumerate(self.terms)}
 
         n = max(self.n_docs, 1)
-        self.idf = [
-            math.log(1.0 + (n - freq + 0.5) / (freq + 0.5)) for _, freq in ordered
-        ]
+        self.idf = [math.log(1.0 + (n - freq + 0.5) / (freq + 0.5)) for _, freq in ordered]
 
         index_of = self.term_index
         self.body_postings = [
-            {index_of[t]: c for t, c in counts.items()} for counts in body_postings
+            {index_of[t]: c for t, c in counts.items()} for counts in body_counts_list
         ]
         self.heading_postings = [
-            {index_of[t]: c for t, c in counts.items()} for counts in heading_postings
+            {index_of[t]: c for t, c in counts.items()} for counts in heading_counts_list
         ]
-        self.body_len = [sum(counts.values()) for counts in body_postings]
-        self.heading_len = [sum(counts.values()) for counts in heading_postings]
+        self.body_len = [sum(counts.values()) for counts in body_counts_list]
+        self.heading_len = [sum(counts.values()) for counts in heading_counts_list]
         self.avg_body_len = sum(self.body_len) / n
         self.avg_heading_len = sum(self.heading_len) / n
         return self
@@ -121,17 +120,13 @@ class BM25Index:
                 idf = self.idf[tid]
                 body_tf = body.get(tid, 0)
                 if body_tf:
-                    total += idf * self._saturation(
-                        body_tf, self.body_len[doc], self.avg_body_len
-                    )
+                    total += idf * self._saturation(body_tf, self.body_len[doc], self.avg_body_len)
                 heading_tf = heading.get(tid, 0)
                 if heading_tf:
                     total += (
                         self.heading_weight
                         * idf
-                        * self._saturation(
-                            heading_tf, self.heading_len[doc], self.avg_heading_len
-                        )
+                        * self._saturation(heading_tf, self.heading_len[doc], self.avg_heading_len)
                     )
             scores[doc] = total
         return scores
@@ -157,7 +152,7 @@ class BM25Index:
         }
 
     @classmethod
-    def from_state(cls, state: dict) -> "BM25Index":
+    def from_state(cls, state: dict) -> BM25Index:
         obj = cls(
             k1=float(state.get("k1", DEFAULT_K1)),
             b=float(state.get("b", DEFAULT_B)),
@@ -166,12 +161,8 @@ class BM25Index:
         obj.terms = list(state["terms"])
         obj.term_index = {term: i for i, term in enumerate(obj.terms)}
         obj.idf = [float(x) for x in state["idf"]]
-        obj.body_postings = [
-            {int(k): int(v) for k, v in p.items()} for p in state["body"]
-        ]
-        obj.heading_postings = [
-            {int(k): int(v) for k, v in p.items()} for p in state["heading"]
-        ]
+        obj.body_postings = [{int(k): int(v) for k, v in p.items()} for p in state["body"]]
+        obj.heading_postings = [{int(k): int(v) for k, v in p.items()} for p in state["heading"]]
         obj.body_len = [int(x) for x in state["body_len"]]
         obj.heading_len = [int(x) for x in state["heading_len"]]
         n = max(len(obj.body_len), 1)

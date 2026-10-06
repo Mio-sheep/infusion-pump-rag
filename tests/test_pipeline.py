@@ -1,4 +1,5 @@
 """端到端：构建索引 → 检索 → 问答 → 统计。"""
+
 from __future__ import annotations
 
 import json
@@ -77,8 +78,14 @@ class TestMetadataViews(unittest.TestCase):
         with temp_rag() as (rag, _, _):
             stats = rag.stats()
         for key in (
-            "n_documents", "n_chunks", "n_sections", "vocab_size",
-            "avg_chunk_chars", "max_chunk_chars", "has_dense", "modes",
+            "n_documents",
+            "n_chunks",
+            "n_sections",
+            "vocab_size",
+            "avg_chunk_chars",
+            "max_chunk_chars",
+            "has_dense",
+            "modes",
         ):
             self.assertIn(key, stats)
         self.assertEqual(stats["n_documents"], 2)
@@ -87,15 +94,13 @@ class TestMetadataViews(unittest.TestCase):
     def test_documents_view_exposes_sources(self):
         with temp_rag() as (rag, _, _):
             docs = rag.documents()
-        self.assertEqual([d["path"] for d in docs],
-                         ["01-阻塞报警处置.md", "02-电池与电源.md"])
+        self.assertEqual([d["path"] for d in docs], ["01-阻塞报警处置.md", "02-电池与电源.md"])
         self.assertTrue(all(d["sources"] for d in docs))
         self.assertTrue(all(d["n_chunks"] > 0 for d in docs))
 
     def test_missing_index_gives_actionable_error(self):
-        with temp_project() as (_, index_path):
-            with self.assertRaises(FileNotFoundError) as ctx:
-                KnowledgeIndex.load(index_path)
+        with temp_project() as (_, index_path), self.assertRaises(FileNotFoundError) as ctx:
+            KnowledgeIndex.load(index_path)
         self.assertIn("build", str(ctx.exception))
 
     def test_index_version_mismatch_is_reported(self):

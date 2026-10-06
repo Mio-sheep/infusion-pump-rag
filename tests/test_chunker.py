@@ -1,4 +1,5 @@
 """前置元数据解析、分块边界、表格处理、出处收集。"""
+
 from __future__ import annotations
 
 import sys
@@ -19,7 +20,9 @@ class TestFrontMatter(unittest.TestCase):
         self.assertEqual(meta["title"], "阻塞报警处置")
         self.assertEqual(meta["updated"], "2026-02-28")
         self.assertEqual(len(meta["sources"]), 2)
-        self.assertEqual(meta["sources"][0]["label"], "FDA, Examples of Reported Infusion Pump Problems")
+        self.assertEqual(
+            meta["sources"][0]["label"], "FDA, Examples of Reported Infusion Pump Problems"
+        )
         self.assertNotIn("---", body.splitlines()[0])
         self.assertTrue(body.lstrip().startswith("# 阻塞报警处置"))
 
@@ -104,14 +107,16 @@ class TestDocumentParsing(unittest.TestCase):
         self.assertEqual(len(ids), len(set(ids)))
         for doc in docs:
             orders = [c.order for c in doc.chunks]
-            self.assertEqual(orders, list(range(1, len(orders) + 1)),
-                             f"{doc.meta.doc_id} 的 order 不是从 1 连续递增")
+            self.assertEqual(
+                orders,
+                list(range(1, len(orders) + 1)),
+                f"{doc.meta.doc_id} 的 order 不是从 1 连续递增",
+            )
 
     def test_corpus_is_read_in_filename_order(self):
         with temp_project() as (corpus, _):
             docs = load_corpus(corpus, ChunkConfig())
-        self.assertEqual([d.meta.path for d in docs],
-                         ["01-阻塞报警处置.md", "02-电池与电源.md"])
+        self.assertEqual([d.meta.path for d in docs], ["01-阻塞报警处置.md", "02-电池与电源.md"])
 
     def test_missing_corpus_raises(self):
         with self.assertRaises(FileNotFoundError):

@@ -6,6 +6,7 @@
 
 英文与数字按词切，并保留内部出现的 `.-/+%`，这样型号与标准号是一个整体 token。
 """
+
 from __future__ import annotations
 
 import re
@@ -29,8 +30,8 @@ def normalize(text: str) -> str:
     if not text:
         return ""
     text = _IMAGE_RE.sub(" ", text)
-    text = _LINK_RE.sub(r"\1", text)   # 保留链接文字，丢掉 URL
-    text = _CODE_RE.sub(r"\1", text)   # 保留行内代码内容
+    text = _LINK_RE.sub(r"\1", text)  # 保留链接文字，丢掉 URL
+    text = _CODE_RE.sub(r"\1", text)  # 保留行内代码内容
     text = _EMPHASIS_RE.sub(r"\2", text)
     return text
 

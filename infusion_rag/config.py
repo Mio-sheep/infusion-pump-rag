@@ -1,4 +1,5 @@
 """配置。"""
+
 from __future__ import annotations
 
 import os
@@ -63,7 +64,7 @@ class LLMConfig:
     max_tokens: int = 1200
 
     @classmethod
-    def from_env(cls) -> "LLMConfig":
+    def from_env(cls) -> LLMConfig:
         return cls(
             base_url=os.environ.get("RAG_LLM_BASE_URL", "").strip(),
             api_key=os.environ.get("RAG_LLM_API_KEY", "").strip(),
