@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "infusion-pump-rag"
-version = "1.1.0"
+version = "1.2.0"
 description = "输液泵 / 注射泵 小型 RAG 知识库：零依赖可离线运行，带可复现评测集"
 readme = "README.md"
 requires-python = ">=3.9"

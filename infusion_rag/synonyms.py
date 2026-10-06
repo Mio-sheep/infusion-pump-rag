@@ -60,6 +60,7 @@ CONCEPTS: dict[str, tuple[str, ...]] = {
     "输注不足": ("under-infusion", "under infusion", "不足"),
     "流速": ("flow rate", "rate", "ml/h", "速度"),
     "待输容量": ("vtbi", "volume to be infused", "预置量"),
+    "保持静脉通畅": ("kvo", "keep vein open"),
     "剂量": ("dose", "dosage", "给药量"),
     "浓度": ("concentration", "配比"),
     "体重": ("weight", "kg", "kilograms", "pounds", "千克", "磅"),

@@ -114,5 +114,36 @@ class TestApi(ServerTestCase):
         self.assertLessEqual(len(data["hits"]), 4)
 
 
+class TestCalcApi(ServerTestCase):
+    """换算接口不依赖索引，但挂在同一个服务里。"""
+
+    def test_dose_to_rate(self):
+        _, data = self.get_json("/api/calc?dose=0.1ug/kg/min&weight=60&conc=4mg/50mL&vtbi=50")
+        self.assertAlmostEqual(data["rate_ml_h"], 4.5, places=5)
+        self.assertTrue(data["steps"])
+        self.assertIn("4.5", "\n".join(data["steps"]))
+
+    def test_rate_to_dose(self):
+        _, data = self.get_json("/api/calc?rate=4.5mL/h&weight=60&conc=4mg/50mL&as=ug/kg/min")
+        self.assertAlmostEqual(data["dose_per_hour"], 360.0, places=5)
+
+    def test_bad_input_is_400_with_message(self):
+        with self.assertRaises(urllib.error.HTTPError) as ctx:
+            self.get("/api/calc?dose=0.1ug/kg/min&conc=4mg/50mL")  # 缺体重
+        self.assertEqual(ctx.exception.code, 400)
+        error = json.loads(ctx.exception.read().decode("utf-8"))
+        self.assertIn("weight", error["error"])
+
+    def test_neither_dose_nor_rate_is_400(self):
+        with self.assertRaises(urllib.error.HTTPError) as ctx:
+            self.get("/api/calc?conc=4mg/50mL")
+        self.assertEqual(ctx.exception.code, 400)
+
+    def test_page_contains_calculator(self):
+        _, body = self.get("/")
+        self.assertIn("剂量 ↔ 泵速 换算", body)
+        self.assertIn('id="cFwd"', body)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

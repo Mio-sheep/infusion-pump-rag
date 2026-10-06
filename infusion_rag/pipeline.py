@@ -22,7 +22,7 @@ from .retriever import MODES, Hit, Retriever
 from .store import KnowledgeIndex
 from .tokenizer import tokenize_for_index
 
-__version__ = "1.1.0"
+__version__ = "1.2.0"
 
 
 class InfusionPumpRAG:

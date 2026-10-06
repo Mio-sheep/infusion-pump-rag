@@ -68,6 +68,24 @@ PAGE = """<!DOCTYPE html>
   button:hover { background: #14509c; }
   button.secondary { background: var(--panel); color: var(--fg); border-color: var(--line-strong); }
   button.secondary:hover { background: #f2f1ee; }
+  details.calc {
+    border: 1px solid var(--line); background: var(--panel); border-radius: 8px;
+    padding: 12px 18px; margin-bottom: 20px;
+  }
+  details.calc summary { cursor: pointer; font-weight: 600; color: var(--muted); font-size: 14px; }
+  details.calc[open] summary { margin-bottom: 14px; color: var(--fg); }
+  .calcGrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; }
+  .calcGrid label { display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; color: var(--muted); }
+  .calcGrid input {
+    padding: 8px 10px; border: 1px solid var(--line-strong); border-radius: 6px;
+    background: var(--bg); color: var(--fg); font: inherit; font-size: 14px; outline: none;
+  }
+  .calcGrid input:focus { border-color: var(--accent); }
+  .calcActions { display: flex; gap: 10px; margin-top: 12px; flex-wrap: wrap; }
+  pre.calcOut {
+    margin-top: 12px; padding: 12px 14px; background: #f6f5f2; border-radius: 6px;
+    font-family: var(--mono); font-size: 13px; line-height: 1.8; white-space: pre-wrap;
+  }
   .controls { display: flex; flex-wrap: wrap; gap: 18px; align-items: center;
               color: var(--muted); font-size: 13px; padding-bottom: 18px; }
   .controls label { display: flex; align-items: center; gap: 6px; }
@@ -134,6 +152,26 @@ PAGE = """<!DOCTYPE html>
   </div>
 
   <div class="examples" id="examples"></div>
+
+  <details class="calc" id="calcBox">
+    <summary>剂量 ↔ 泵速 换算（点开）</summary>
+    <div class="calcGrid">
+      <label>剂量率<input id="cDose" placeholder="0.1ug/kg/min"></label>
+      <label>体重 kg<input id="cWeight" placeholder="60"></label>
+      <label>药液浓度<input id="cConc" placeholder="4mg/50mL"></label>
+      <label>待输 mL<input id="cVtbi" placeholder="50，可空"></label>
+    </div>
+    <div class="calcGrid" style="margin-top:10px">
+      <label>或反算：泵速 mL/h<input id="cRate" placeholder="4.5，可空"></label>
+      <label>反算目标单位<input id="cAs" value="ug/kg/min"></label>
+    </div>
+    <div class="calcActions">
+      <button type="button" id="cFwd">算泵速</button>
+      <button type="button" class="secondary" id="cRev">由泵速反算剂量</button>
+    </div>
+    <pre id="cOut" class="calcOut" hidden></pre>
+  </details>
+
   <main id="out"></main>
 
   <footer>
@@ -238,6 +276,30 @@ $('examples').addEventListener('click', (ev) => {
 $('form').addEventListener('submit', (ev) => { ev.preventDefault(); doSearch(); });
 $('askBtn').addEventListener('click', doAsk);
 
+async function doCalc(reverse) {
+  const v = (id) => $(id).value.trim();
+  const params = new URLSearchParams({
+    conc: v('cConc'), weight: v('cWeight'), vtbi: v('cVtbi'),
+  });
+  if (reverse) {
+    params.set('rate', v('cRate'));
+    params.set('as', v('cAs'));
+  } else {
+    params.set('dose', v('cDose'));
+  }
+  const out = $('cOut');
+  out.hidden = false;
+  out.textContent = '计算中…';
+  try {
+    const d = await getJSON('/api/calc?' + params.toString());
+    out.textContent = d.steps.join('\n');
+  } catch (e) {
+    out.textContent = '出错：' + e.message;
+  }
+}
+$('cFwd').addEventListener('click', () => doCalc(false));
+$('cRev').addEventListener('click', () => doCalc(true));
+
 getJSON('/api/stats').then((s) => {
   const parts = [
     `${s.n_documents} 篇文档`,
@@ -306,7 +368,59 @@ def _make_handler(rag: InfusionPumpRAG, page: bytes, quiet: bool = False):
                 self._handle_query(path, params)
                 return
 
+            if path == "/api/calc":
+                self._handle_calc(params)
+                return
+
             self._json({"error": "404 not found"}, 404)
+
+        def _handle_calc(self, params: dict) -> None:
+            from .calc import CalcError, dose_to_rate, rate_to_dose
+
+            def text(key: str) -> str:
+                return (params.get(key) or [""])[0].strip()
+
+            def number(key: str) -> float | None:
+                raw = text(key)
+                if not raw:
+                    return None
+                try:
+                    return float(raw)
+                except ValueError:
+                    raise CalcError(f"{key} 应该是数字，收到 {raw!r}") from None
+
+            try:
+                if text("rate"):
+                    result = rate_to_dose(
+                        text("rate"),
+                        number("weight"),
+                        text("conc"),
+                        as_unit=text("as") or "ug/kg/min",
+                    )
+                else:
+                    if not text("dose"):
+                        self._json(
+                            {"error": "要么给 dose（剂量率），要么给 rate（泵速 mL/h）"}, 400
+                        )
+                        return
+                    result = dose_to_rate(
+                        text("dose"),
+                        number("weight"),
+                        text("conc"),
+                        vtbi_ml=number("vtbi"),
+                    )
+            except CalcError as exc:
+                self._json({"error": str(exc)}, 400)
+                return
+
+            self._json(
+                {
+                    "steps": result.steps,
+                    "rate_ml_h": round(result.rate_ml_h, 6),
+                    "dose_per_hour": round(result.dose_per_hour, 6),
+                    "dose_per_hour_unit": result.dose_per_hour_unit,
+                }
+            )
 
         def _handle_query(self, path: str, params: dict) -> None:
             query = (params.get("q") or [""])[0].strip()

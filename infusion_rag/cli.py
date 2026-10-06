@@ -116,6 +116,16 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("docs", help="列出语料文档与出处")
     sub.add_parser("stats", help="索引统计")
 
+    p = sub.add_parser("calc", help="剂量率 ↔ 泵速 换算（不需要索引，随时可用）")
+    p.add_argument("dose", nargs="?", help='剂量率，如 "0.1ug/kg/min" 或 "5mg/h"')
+    p.add_argument("--conc", required=True, help='药液浓度，如 "4mg/50mL" 或 "80ug/mL"')
+    p.add_argument("--weight", type=float, default=None, help="体重（kg），剂量率含 /kg 时必填")
+    p.add_argument("--vtbi", type=float, default=None, help="待输容量（mL），用来估算输完时间")
+    p.add_argument("--rate", default=None, help="反算：给泵上的 mL/h，算回剂量率")
+    p.add_argument(
+        "--as", dest="as_unit", default="ug/kg/min", help="反算的目标单位（默认 ug/kg/min）"
+    )
+
     p = sub.add_parser("serve", help="启动网页版界面")
     p.add_argument("--host", default="127.0.0.1")
     p.add_argument("--port", type=int, default=8000)
@@ -152,6 +162,27 @@ def main(argv: list[str] | None = None) -> int:
             f"平均 {stats['avg_chunk_chars']} 字/片段 · "
             f"稠密向量 {'有' if stats['has_dense'] else '无'}"
         )
+        return 0
+
+    # ---- calc 不依赖索引，放在索引检查之前 -------------------------------- #
+    if args.command == "calc":
+        from .calc import CalcError, dose_to_rate, rate_to_dose
+
+        try:
+            if args.rate:
+                outcome = rate_to_dose(args.rate, args.weight, args.conc, as_unit=args.as_unit)
+            elif args.dose:
+                outcome = dose_to_rate(args.dose, args.weight, args.conc, vtbi_ml=args.vtbi)
+            else:
+                print("要么给剂量率参数，要么用 --rate 指定泵速。详见 --help。", file=sys.stderr)
+                return 2
+        except CalcError as exc:
+            print(f"输入有问题：{exc}", file=sys.stderr)
+            return 2
+
+        print()
+        print(outcome.render())
+        print()
         return 0
 
     # ---- 其余命令都需要已有索引 ------------------------------------------ #
