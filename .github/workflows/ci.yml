@@ -38,7 +38,7 @@ jobs:
       # 这里比较的是去掉时间戳之后的完整内容。
       - name: 确认预构建索引与语料一致
         run: |
-          python -m infusion_rag.cli build --index /tmp/fresh_index.json
+          python -m infusion_rag.cli --index /tmp/fresh_index.json build
           python scripts/check_index_sync.py index/kb_index.json /tmp/fresh_index.json
 
       - name: 检索冒烟测试
