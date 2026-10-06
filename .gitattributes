@@ -1,0 +1,11 @@
+# 统一用 LF，避免 Windows/macOS/Linux 之间反复出现整文件 diff
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+
+# 预构建索引是单行 JSON，不要在 diff 里展开
+index/kb_index.json -diff linguist-generated=true

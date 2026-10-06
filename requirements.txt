@@ -1,0 +1,7 @@
+# 核心功能零第三方依赖，只用 Python 标准库。
+#
+# 分块、TF-IDF 向量化、检索、抽取式问答、网页版界面全部基于标准库实现，
+# 因此 clone 下来就能跑，无需联网下载模型。
+#
+# 如果需要语义向量检索，再安装可选项：
+#     pip install -r requirements-optional.txt

@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.9", "3.11", "3.12"]
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      # 核心功能零依赖，直接跑测试
+      - name: Run unit tests
+        run: python -m unittest discover -s tests -v
+
+      - name: Rebuild index from scratch
+        run: python -m infusion_rag.cli build
+
+      - name: Smoke-test retrieval
+        run: |
+          python -m infusion_rag.cli stats
+          python -m infusion_rag.cli search "阻塞报警怎么排查" -k 3 --no-text
+          python -m infusion_rag.cli ask "JJF 1259 是什么标准" --no-llm -k 3

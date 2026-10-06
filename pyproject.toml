@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "infusion-pump-rag"
+version = "1.0.0"
+description = "输液泵 / 注射泵 小型 RAG 知识库（零依赖核心，可离线运行）"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+keywords = ["rag", "retrieval", "infusion-pump", "syringe-pump", "medical-device", "knowledge-base"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "License :: OSI Approved :: MIT License",
+  "Topic :: Scientific/Engineering :: Medical Science Apps.",
+]
+dependencies = []
+
+[project.optional-dependencies]
+dense = ["sentence-transformers>=2.2"]
+dev = ["pytest>=7"]
+
+[project.scripts]
+infusion-rag = "infusion_rag.cli:main"
+
+[tool.setuptools]
+packages = ["infusion_rag"]
