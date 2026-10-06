@@ -1,0 +1,72 @@
+name: 内容纠错
+description: 知识库里的某条说法不准确、过时或缺少出处，用这个模板
+title: "[内容] "
+labels: ["content"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        这个知识库的价值取决于内容是否准确。如果你发现某条说法有问题，请尽量把信息填全，
+        尤其是**依据**——没有依据的纠错我没法判断该不该改。
+
+  - type: input
+    id: file
+    attributes:
+      label: 涉及的文件与小节
+      description: 文件路径，以及小节标题
+      placeholder: data/raw/06-维护与计量校准.md › 电池管理
+    validations:
+      required: true
+
+  - type: textarea
+    id: quote
+    attributes:
+      label: 原文摘录
+      description: 把有问题的原话贴过来
+      render: markdown
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: 问题在哪里
+      description: 是数值错了、表述有歧义、说法已过时，还是把工程惯例写成了标准要求？
+    validations:
+      required: true
+
+  - type: textarea
+    id: correction
+    attributes:
+      label: 建议改成什么
+      description: 给出你认为准确的表述
+    validations:
+      required: true
+
+  - type: textarea
+    id: evidence
+    attributes:
+      label: 依据
+      description: |
+        标准编号与条款、厂家手册（型号 + 版本 + 页码）、监管机构文件、同行评议论文，
+        或者你的实际工作经验。请注明是哪一类。
+      placeholder: |
+        YY 9706.227-2021 第 8.4.2 条（我手上有标准文本，可以确认）
+        某型号说明书 5-12 页（2023 版）
+        我在设备科做了 8 年 PM，实测过 20 台同类设备
+    validations:
+      required: true
+
+  - type: dropdown
+    id: role
+    attributes:
+      label: 你的背景（可选，但有助于我判断权重）
+      multiple: false
+      options:
+        - 临床护士 / 医师
+        - 医院设备科 / 临床工程师
+        - 计量检定机构
+        - 医疗器械企业
+        - 其他 / 不说明
+    validations:
+      required: false

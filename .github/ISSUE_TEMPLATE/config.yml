@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 先看看常见问题
+    url: https://github.com/Mio-sheep/infusion-pump-rag#常见问题
+    about: 检索结果不理想、索引版本不匹配等问题在 README 里有说明

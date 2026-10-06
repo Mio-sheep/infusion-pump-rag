@@ -1,10 +1,14 @@
 """答案生成。
 
-两种模式：
-  1. extractive（默认，零依赖）：不做生成，直接把最相关的片段按相关性排好并给出出处。
-  2. llm（可选）：把检索到的片段作为上下文，调用任意 OpenAI 兼容 /chat/completions 接口生成答案。
-"""
+两种方式：
 
+  extractive  不调模型，把最相关的原文片段按相关度排好并标注出处。
+              零成本、零幻觉，对"我要找原文"这类用法完全够用。
+  llm         把检索到的片段作为唯一上下文交给大模型，要求逐条标注 [编号]。
+              接入任何 OpenAI 兼容的 /chat/completions 接口。
+
+无论哪种方式，出处都取自索引里的文档元数据，而不是让模型自己编。
+"""
 from __future__ import annotations
 
 import json
@@ -14,64 +18,85 @@ import urllib.request
 from .config import LLMConfig
 from .retriever import Hit
 
-SYSTEM_PROMPT = """你是一名医疗设备（输液泵、注射泵）领域的技术助手。
+SYSTEM_PROMPT = """你是医用输液泵与注射泵领域的技术资料助手。
 
 回答规则：
-1. 只依据【参考资料】作答，不要引入资料之外的事实，也不要凭经验补充。
-2. 每一条结论后面用 [编号] 标注来源，编号对应参考资料的序号。
-3. 如果参考资料不足以回答，直接说明"现有知识库中没有足够信息回答该问题"，并指出缺什么。
-4. 涉及临床操作时，提醒以医院制度和设备说明书为准。
-5. 用简洁的中文回答，必要时用列表或表格；先给结论，再给依据。"""
+1. 只依据【资料】作答。资料里没有的内容，直接说"知识库中没有相关内容"，不要用先验知识补充。
+2. 每条结论后面标注来源编号，写成 [1]、[2] 这种形式。
+3. 资料之间如果互相矛盾，把矛盾点讲出来，不要替它们调和。
+4. 涉及临床操作、设备维修或计量校准的结论，提醒以设备说明书、现行标准和本院制度为准。
+5. 先给结论，再给依据。用中文，语言简洁，不要用"首先/其次/最后"这类套话。"""
 
-DISCLAIMER = (
-    "> 以上内容由本地知识库检索生成，仅供学习与检索参考，"
-    "不能替代设备说明书、院内操作规程与临床判断。"
+FOOTER = (
+    "---\n"
+    "*以上内容由本地知识库检索得到，仅供查资料用。"
+    "实际处置请以设备说明书、现行标准文本和本院规章制度为准。*"
 )
 
 
 def build_context(hits: list[Hit], max_chars: int = 7000, max_chunk_chars: int = 1400) -> str:
-    """把检索结果拼成给大模型看的上下文。"""
+    """拼出给大模型的上下文。每块带定位信息，方便模型写 [编号]。"""
     blocks: list[str] = []
-    total = 0
+    used = 0
     for hit in hits:
         text = hit.chunk.text
         if len(text) > max_chunk_chars:
-            text = text[:max_chunk_chars] + " …（已截断）"
-        block = (
-            f"[{hit.rank}] 出处：{hit.chunk.doc_title} › {hit.chunk.heading}"
-            f"（文件：{hit.chunk.source}）\n{text}"
-        )
-        if total + len(block) > max_chars and blocks:
+            text = text[:max_chunk_chars].rstrip() + " …（原文较长，此处截断）"
+        block = f"[{hit.rank}] 位置：{hit.label}\n{text}"
+        if used + len(block) > max_chars and blocks:
             break
         blocks.append(block)
-        total += len(block)
+        used += len(block)
     return "\n\n---\n\n".join(blocks)
 
 
-def extractive_answer(query: str, hits: list[Hit], max_chunk_chars: int = 900) -> str:
-    """无大模型时：返回最相关的原文片段。"""
-    if not hits:
-        return f"知识库中没有检索到与「{query}」相关的内容。可以换个说法，或先运行 build 重建索引。"
+def format_sources(hits: list[Hit], limit: int = 6) -> str:
+    """把命中片段所属文档的出处去重列出。"""
+    lines: list[str] = []
+    seen: set[str] = set()
+    for hit in hits:
+        for source in hit.sources:
+            label = source.get("label", "")
+            url = source.get("url", "")
+            key = url or label
+            if not key or key in seen:
+                continue
+            seen.add(key)
+            lines.append(f"- [{label}]({url})" if url else f"- {label}")
+            if len(lines) >= limit:
+                return "\n".join(lines)
+    return "\n".join(lines)
 
-    lines = [
+
+def extractive_answer(query: str, hits: list[Hit], max_chunk_chars: int = 900) -> str:
+    """不调模型：给出最相关的原文片段。"""
+    if not hits:
+        return (
+            f"知识库中没有检索到与「{query}」相关的内容。\n\n"
+            f"可以换个说法再试，或用 `python -m infusion_rag.cli search` 看看命中了什么。"
+        )
+
+    parts = [
         f"**问题：** {query}",
         "",
-        f"未配置大模型，以下是知识库中与问题最相关的 {len(hits)} 个片段（按相关度排序）：",
+        f"未配置大模型，下面按相关度列出知识库中最相关的 {len(hits)} 个片段。",
         "",
     ]
     for hit in hits:
         text = hit.chunk.text
         if len(text) > max_chunk_chars:
             text = text[:max_chunk_chars].rstrip() + " …"
-        lines.append(
-            f"**[{hit.rank}] {hit.chunk.doc_title} › {hit.chunk.heading}**"
-            f"  \n`{hit.chunk.source}` · 相关度 {hit.score:.4f}"
-        )
-        lines.append("")
-        lines.append(text)
-        lines.append("")
-    lines.append(DISCLAIMER)
-    return "\n".join(lines)
+        parts.append(f"**[{hit.rank}] {hit.label}**  ")
+        parts.append(f"`{hit.chunk.path}` · 相关度 {hit.score:.4f}")
+        parts.append("")
+        parts.append(text)
+        parts.append("")
+
+    sources = format_sources(hits)
+    if sources:
+        parts.extend(["**出处：**", sources, ""])
+    parts.append(FOOTER)
+    return "\n".join(parts)
 
 
 def llm_answer(query: str, hits: list[Hit], cfg: LLMConfig) -> str:
@@ -81,26 +106,26 @@ def llm_answer(query: str, hits: list[Hit], cfg: LLMConfig) -> str:
     if not hits:
         return f"知识库中没有检索到与「{query}」相关的内容。"
 
-    context = build_context(hits)
-    user_prompt = (
-        f"【参考资料】\n{context}\n\n"
-        f"【问题】\n{query}\n\n"
-        f"请依据参考资料作答，并用 [编号] 标注来源。"
-    )
-
-    url = cfg.base_url.rstrip("/") + "/chat/completions"
     payload = {
         "model": cfg.model,
         "messages": [
             {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": user_prompt},
+            {
+                "role": "user",
+                "content": (
+                    f"【资料】\n{build_context(hits)}\n\n"
+                    f"【问题】\n{query}\n\n"
+                    f"请依据资料作答，并用 [编号] 标注每一条结论的来源。"
+                ),
+            },
         ],
         "temperature": cfg.temperature,
         "max_tokens": cfg.max_tokens,
         "stream": False,
     }
+
     request = urllib.request.Request(
-        url,
+        cfg.base_url.rstrip("/") + "/chat/completions",
         data=json.dumps(payload).encode("utf-8"),
         headers={
             "Content-Type": "application/json",
@@ -111,14 +136,21 @@ def llm_answer(query: str, hits: list[Hit], cfg: LLMConfig) -> str:
     try:
         with urllib.request.urlopen(request, timeout=cfg.timeout) as response:
             body = json.loads(response.read().decode("utf-8"))
-    except urllib.error.HTTPError as exc:  # pragma: no cover - 取决于外部服务
+    except urllib.error.HTTPError as exc:  # pragma: no cover - 依赖外部服务
         detail = exc.read().decode("utf-8", errors="replace")[:500]
         raise RuntimeError(f"大模型接口返回 {exc.code}：{detail}") from exc
-    except urllib.error.URLError as exc:  # pragma: no cover
+    except urllib.error.URLError as exc:  # pragma: no cover - 依赖外部服务
         raise RuntimeError(f"无法连接大模型接口：{exc.reason}") from exc
 
     choices = body.get("choices") or []
     if not choices:
-        raise RuntimeError(f"大模型返回内容为空：{json.dumps(body, ensure_ascii=False)[:400]}")
+        raise RuntimeError(
+            f"大模型返回内容为空：{json.dumps(body, ensure_ascii=False)[:400]}"
+        )
     text = (choices[0].get("message") or {}).get("content", "").strip()
-    return f"{text}\n\n{DISCLAIMER}" if text else "大模型没有返回内容。"
+    if not text:
+        return "大模型没有返回内容。"
+
+    sources = format_sources(hits)
+    tail = f"\n\n**出处：**\n{sources}\n" if sources else "\n"
+    return f"{text}{tail}\n{FOOTER}"

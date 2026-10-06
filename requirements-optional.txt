@@ -1,6 +1,14 @@
-# 可选的语义向量后端（不装也能用，默认 tfidf 后端即可离线运行）
+# 可选项：语义向量检索。
 #
-# 安装后可用更强的语义检索：
-#     python -m infusion_rag.cli build --backend sentence-transformers
-#     python -m infusion_rag.cli search "泵响个不停怎么办" --mode hybrid
+# 不装这个文件也能用 —— 默认的 BM25 已经覆盖术语、编号、标准号这类查询，
+# 而且零依赖、完全离线。
+#
+# 语义向量有用的场景是"用户不知道术语、用自己的话问"，例如
+# 问"泵一直响个不停"而不是"报警"。装好后这样用：
+#
+#     python -m infusion_rag.cli build --dense
+#     python -m infusion_rag.cli search "泵一直响个不停" --mode hybrid
+#
+# 注意：--dense 会在 index/ 下额外生成 kb_index.dense.json，体积较大，
+# 该文件已被 gitignore，可以随时删除并重建。
 sentence-transformers>=2.2

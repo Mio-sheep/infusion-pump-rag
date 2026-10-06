@@ -1,299 +1,234 @@
-# 输液泵 / 注射泵 小型 RAG 知识库
+# 输液泵 / 注射泵 知识库
 
-一个**零依赖、可离线运行**的垂直领域 RAG 示例：知识库内容围绕 **输液泵（infusion pump）** 与 **注射泵（syringe pump）**，覆盖原理结构、临床使用规范、报警故障排查、风险与不良事件、维护校准、术语标准。
+一个可以本地跑起来的垂直领域 RAG：知识库内容是输液泵和注射泵的技术资料，
+检索链路用 Python 标准库实现，**clone 下来不装任何东西就能用**。
 
-- **不装任何第三方包就能跑**：分块、TF-IDF 向量化、检索、抽取式问答、网页界面全部基于 Python 标准库实现。
-- **不需要联网下载模型**：默认用中英文字符 n-gram TF-IDF 做检索，clone 下来即刻可用。
-- **可选升级**：装了 `sentence-transformers` 就能开启语义向量并做混合检索；配置任意 OpenAI 兼容接口就能让大模型基于检索结果作答并标注出处。
+```
+ infusion-pump-rag
+ ── 8 篇中文文档，约 1.4 万字，切成 63 个检索片段
+ ── BM25 检索，Recall@3 = 88.9%（评测集见 docs/evaluation.md）
+ ── 零第三方依赖；语义向量和大模型生成是可选项
+```
 
-> ⚠️ 本项目是**学习与检索演示**用途。知识库内容整理自公开资料，**不能替代设备说明书、院内操作规程与临床判断**。
-
----
-
-## 目录
-
-- [快速开始](#快速开始)
-- [网页版界面](#网页版界面)
-- [接入大模型](#接入大模型)
-- [语义检索（可选）](#语义检索可选)
-- [命令行参考](#命令行参考)
-- [换成你自己的知识库](#换成你自己的知识库)
-- [检索原理](#检索原理)
-- [知识库内容](#知识库内容)
-- [项目结构](#项目结构)
-- [数据来源](#数据来源)
-- [免责声明](#免责声明)
-- [License](#license)
-
----
+这不是一个"大模型套壳"项目，也不是医疗器械软件。它做两件事：
+**把技术资料查出来**，以及**在你配置了大模型时，让模型只依据查出来的内容作答**。
 
 ## 快速开始
 
-只需要 **Python 3.9+**，没有其他依赖。
+Python 3.9 以上，没有别的依赖。
 
 ```bash
-git clone <这个仓库的地址>
+git clone https://github.com/Mio-sheep/infusion-pump-rag
 cd infusion-pump-rag
 
-# 1) 构建索引（仓库里已经带了一份构建好的索引，这步可以跳过）
-python -m infusion_rag.cli build
-
-# 2) 提问
-python -m infusion_rag.cli ask "阻塞报警应该怎么排查"
-
-# 3) 只检索，不生成
-python -m infusion_rag.cli search "JJF 1259 是什么标准" -k 3
+python -m infusion_rag.cli ask "阻塞报警怎么排查"
 ```
 
-`ask` 的输出示例：
-
-```
-====================================================================
-**问题：** 阻塞报警应该怎么排查
-
-未配置大模型，以下是知识库中与问题最相关的 4 个片段（按相关度排序）：
-
-**[1] 输液泵与注射泵：常见报警与故障排查 › 2. 按报警类型排查 › 2.2 阻塞报警（Occlusion）**
-`04-常见报警与故障排查.md` · 相关度 0.3580
-
-### 2.2 阻塞报警（Occlusion）
-
-可能原因：
-- 管路打折、受压（患者压住、床栏挤压）。
-- 三通/夹子处于关闭状态。
-...
-====================================================================
-```
-
-跑测试：
-
-```bash
-python -m unittest discover -s tests -v
-```
-
----
-
-## 网页版界面
-
-只用标准库 `http.server`，不需要 Flask / FastAPI：
+仓库里带了一份构建好的索引，所以上面第二条命令就能直接出结果。
+想网页界面的话：
 
 ```bash
 python -m infusion_rag.cli serve --port 8000
-# 然后浏览器打开 http://127.0.0.1:8000
+# 浏览器打开 http://127.0.0.1:8000
 ```
 
-界面上可以实时切换 **hybrid / lexical / dense** 三种检索模式、调整返回条数，
-`问答` 按钮会走"检索 + 生成"流程并在答案下方列出支撑它的原文片段。
+`ask` 不配大模型时的输出长这样（截取）：
 
-JSON 接口：
+```
+**问题：** 阻塞报警怎么排查
 
-| 接口 | 说明 |
+未配置大模型，下面按相关度列出知识库中最相关的 4 个片段。
+
+**[1] 报警与故障排查 › 阻塞报警**
+`03-报警与故障排查.md` · 相关度 40.4117
+
+有条件区分上下游的机型，先分清楚是哪一侧：
+- 上游阻塞：泵和药液容器之间受阻。常见是夹子没开、管路打折……
+```
+
+没有模型就没有生成，这种模式下它做的就是"把原文找出来给你"。
+对查资料来说这往往比生成更可靠，而且不会有幻觉。
+
+## 检索是怎么做的
+
+```
+Markdown 文档
+  │  拆出前置元数据（出处、摘要）        frontmatter.py
+  │  按标题切章节，段落/表格切块          chunker.py
+  │  中文取单字+二元组，英文按词切        tokenizer.py
+  ▼
+字段化 BM25 索引（正文 + 标题两个字段）   bm25.py
+  │
+  ├─ 纯 BM25                默认，零依赖
+  ├─ 稠密向量（可选）        需要 sentence-transformers
+  └─ 两者用 RRF 融合         --mode hybrid
+```
+
+几个设计决定，以及为什么：
+
+**默认用 BM25，不用向量。** 这个语料的查询大多数是术语和编号 ——
+"JJF 1259""upstream occlusion""key bounce""VTBI"。这类查询本质上是精确匹配，
+BM25 上罕见术语的 IDF 很高，定位很准；换成向量反而会出现语义漂移，
+把讲别的泵型的段落排到前面。向量真正有价值的场景是**用户不知道术语、用自己的话问**
+（比如"泵一直响个不停"），所以它做成了可选增强，而不是默认。
+
+**中文不做分词，用字符二元组。** 试过 jieba，放弃了：专业术语词典覆盖不到，
+`mL/h` 和 `IEC 60601-2-24` 会被切碎，而且词典好几个 MB，跟零依赖冲突。
+二元组在这些方面都安全，代价是单字带来的噪声，靠 IDF 压低。
+
+**出处放在元数据里，不放进正文。** 上一版把"参考来源"写成正文最后一节，
+结果这些网址被建了索引，查"JJF 1259"时排第一的经常是某个文档的链接列表，
+因为那段的关键词密度比正文还高。现在出处写在文件头的前置元数据里，
+分块时剥离、不建索引，检索时作为字段挂在结果上返回。
+
+更多取舍写在 [docs/architecture.md](docs/architecture.md)，包括为什么融合用 RRF
+而不用加权求和。
+
+## 评测
+
+`python -m infusion_rag.cli eval`，评测集 45 个问题，人工标注了答案所在的小节。
+
+| 指标 | 数值 |
 | --- | --- |
-| `GET /api/search?q=阻塞报警&k=4&mode=hybrid` | 返回排序后的片段 |
-| `GET /api/ask?q=阻塞报警&k=4` | 返回答案 + 支撑片段（`llm=0` 强制抽取式） |
-| `GET /api/stats` | 索引统计 |
-| `GET /api/docs` | 语料文档清单 |
+| Recall@1 | 71.1% |
+| Recall@3 | **88.9%** |
+| Recall@5 | 91.1% |
+| MRR | 0.798 |
 
----
+Recall@3 是最值得看的那个：前三条里有没有正确的小节，最贴近"查资料"的真实体验。
+也就是说大约每 11 个问题有 1 个需要翻到第 4 条以后，或者换个问法。
 
-## 接入大模型
+我不打算为 Recall@1 继续调参。看过失败用例会发现，不少"失败"是并列排序问题
+—— 正确小节排第二，排第一的是同一篇文档里另一个同样相关的小节。
+继续优化这个数字大概率是在过拟合这 45 条标注。
 
-任意 **OpenAI 兼容** 的 `/chat/completions` 接口都可以。用环境变量配置：
+详细的失败模式分析在 [docs/evaluation.md](docs/evaluation.md)。
+评测集最缺的是**不是作者写的问题**，如果你愿意出几条，见那个文档末尾。
+
+## 知识库内容
+
+`data/raw/` 下 8 篇，按"读者要解决什么问题"组织：
+
+| 文件 | 内容 |
+| --- | --- |
+| 01-设备分类与选型 | 驱动方式、用途分类，以及精度差异的物理原因 |
+| 02-流量精度从哪来 | 流量公式、顺应性、启动延迟、阻塞后团注 |
+| 03-报警与故障排查 | 每类报警先看什么，分级处置，什么时候必须停用 |
+| 04-临床使用与用药安全 | 核对制度、高危药品、药物库、换泵换管 |
+| 05-风险与不良事件 | FDA 归纳的四类根因和已报告问题的实际样貌 |
+| 06-维护与计量校准 | 清洁、电池、预防性维护、JJF 1259 校准 |
+| 07-标准与法规 | 中外标准索引、FDA 监管术语、上报途径 |
+| 08-术语与速查 | 中英术语、单位换算的完整例子 |
+
+内容全部整理自公开资料（FDA 输液泵文档、JJF 1259-2010、IEC 60601-2-24 等），
+每篇文件头部列出处，正文用 `[1]`、`[2]` 指回去，检索结果里也会带上。
+
+**依据分三级，并在正文里标明：** 标准明确要求的直接写并给条款位置；
+厂家手册或文献写的标注型号和来源；**作者自己的工程经验必须明说是经验**。
+把经验包装成规范是这个领域最容易出的事，这个仓库不这么做。
+编制规则见 [docs/knowledge-base.md](docs/knowledge-base.md)。
+
+> 内容仅供查资料用，不能替代设备说明书、现行标准文本和本院规章制度。
+> 标准的条款位置来自公开释义，引用前请核对原文。
+
+## 接大模型（可选）
+
+任何 OpenAI 兼容的 `/chat/completions` 接口：
 
 ```bash
-# Linux / macOS
 export RAG_LLM_BASE_URL="https://api.deepseek.com/v1"
-export RAG_LLM_API_KEY="sk-xxxxxxxx"
+export RAG_LLM_API_KEY="sk-xxx"
 export RAG_LLM_MODEL="deepseek-chat"
-
-# Windows PowerShell
-$env:RAG_LLM_BASE_URL="https://api.deepseek.com/v1"
-$env:RAG_LLM_API_KEY="sk-xxxxxxxx"
-$env:RAG_LLM_MODEL="deepseek-chat"
 
 python -m infusion_rag.cli ask "气泡报警可能是什么原因"
 ```
 
-配置好之后：
+配置后 `ask` 和网页上的"问答"会走模型，提示词要求它**只依据检索到的片段作答**，
+逐条标注 `[编号]`，资料里没有的就直说没有。想强制走抽取式加 `--no-llm`。
 
-- `ask` 会自动改用大模型生成答案，并要求**逐条标注 `[编号]` 出处**；
-- `serve` 的问答按钮同样会走大模型；
-- 想让某次提问强制走抽取式（不调大模型），加 `--no-llm`。
-
-> 没配大模型也完全能用：`ask` 会退化为"把最相关的原文片段排好队并标出处"，
-> 对检索式使用来说信息量是一样的，而且**不会产生幻觉**。
-
----
+模型拿到的上下文就是检索结果，**出处来自索引元数据而不是模型自己编的**。
 
 ## 语义检索（可选）
 
-默认的 TF-IDF 是**关键词**检索：问"泵一直响个不停"不一定能命中"报警"。
-想要语义检索就装可选项：
-
 ```bash
 pip install -r requirements-optional.txt
-
-# 重建索引，同时生成稠密向量
-python -m infusion_rag.cli build --backend sentence-transformers
-
-# 三种模式随便切
-python -m infusion_rag.cli search "泵一直响个不停" --mode dense
+python -m infusion_rag.cli build --dense
 python -m infusion_rag.cli search "泵一直响个不停" --mode hybrid
 ```
 
-- `--backend tfidf`（默认）：只用稀疏向量，零依赖。
-- `--backend sentence-transformers`：稀疏 + 稠密都建，`hybrid` 模式下用 **RRF（Reciprocal Rank Fusion）** 融合两路结果。
-- `--backend auto`：装了就用语义模型，没装自动退回 tfidf。
+`--dense` 会把向量写到 `index/kb_index.dense.json`，这个文件体积大且可重建，
+所以 gitignore 掉了，主索引 `kb_index.json` 保持小而可读、随仓库一起提交。
 
-中文语义模型默认用 `shibing624/text2vec-base-chinese`，可以用 `--model` 换：
+## 命令
 
-```bash
-python -m infusion_rag.cli build --backend sentence-transformers --model BAAI/bge-small-zh-v1.5
-```
-
----
-
-## 命令行参考
-
-```bash
-python -m infusion_rag.cli --help
-```
-
-| 命令 | 说明 |
+| 命令 | 作用 |
 | --- | --- |
-| `build` | 读取 `data/raw/` 下的 Markdown，切块、向量化、写出索引 |
-| `search "<查询>"` | 只检索。支持 `-k` 条数、`-m` 模式、`--json`、`--no-text` |
-| `ask "<问题>"` | 检索 + 生成答案。支持 `--no-llm` 强制抽取式 |
-| `docs` | 列出语料文档与各自片段数 |
-| `stats` | 索引统计（文档数、片段数、词表、平均长度…） |
-| `serve` | 启动网页界面，`--host` / `--port` |
+| `build` | 从 `data/raw/` 构建索引 |
+| `search "…"` | 只检索，支持 `-k` 条数、`-m bm25/dense/hybrid` |
+| `ask "…"` | 检索并生成，`--no-llm` 强制抽取式 |
+| `explain "…"` | 看检索细节：分词结果、两路分数、名次 |
+| `eval` | 跑评测集，`--failures 10` 列出未命中的问题 |
+| `docs` | 列出语料文档与出处 |
+| `stats` | 索引统计 |
+| `serve` | 网页界面 |
 
-`build` 的常用参数：
-
-```bash
-python -m infusion_rag.cli build \
-  --corpus data/raw \
-  --index index/kb_index.json \
-  --backend tfidf \
-  --max-chars 600 \
-  --overlap 100
-```
-
----
+改了自己的语料之后要重新 `build` 并提交索引，CI 会检查两者是否同步。
 
 ## 换成你自己的知识库
 
-1. 把 Markdown / 纯文本文件丢进 `data/raw/`（会递归扫描 `.md` / `.markdown` / `.txt`）。
-2. 重新构建：`python -m infusion_rag.cli build`
-3. 完事。
+把 Markdown 丢进 `data/raw/`，重新 `build`，完事。
 
-分块规则（`infusion_rag/chunker.py`）：
+文件支持一段可选的前置元数据：
 
-- 先按 `#` 标题切成章节，小节标题会拼成 `一级 › 二级 › 三级` 的形式；
-- 章节内先按空行分段，超长段落再按句号/分号切；
-- Markdown 表格**按行切并给每块补上表头**，避免表格被切断后看不懂；
-- 相邻块之间保留 `--overlap` 个字符的重叠，防止答案正好落在切口上。
-
-如果你的语料是中文为主、术语很特殊，可以在 `infusion_rag/synonyms.py` 里补中英对照词，
-中文查询会自动扩展出英文关键词（例如"阻塞" → `occlusion`），显著提升中英混排语料的召回。
-
+```markdown
+---
+title: 标题
+summary: 一句话说明
+updated: 2026-02-28
+sources:
+  - label: 资料名
+    url: https://example.com/
 ---
 
-## 检索原理
-
-```
-Markdown 语料
-   │
-   ├─ chunker.py    按标题/段落/表格切块（带重叠）
-   │
-   ├─ tokenizer.py  中英混排分词：CJK 用「单字 + 二元组」，拉丁文按词切
-   │
-   ├─ embedder.py   TF-IDF（L2 归一化，点积即余弦）  ← 默认，纯标准库
-   │                + 可选 sentence-transformers 稠密向量
-   │
-   ├─ store.py      一个 JSON 装下 词表 + IDF + 稀疏向量 + 稠密向量
-   │
-   └─ retriever.py  两路打分 → RRF 融合 → 排序
-         │
-         ├─ 标题命中加成：查询词出现在小节标题里就加权
-         ├─ 引用列表降权：全是网址的"参考来源"小节降低权重
-         └─ 同义词扩展：中文查询自动补英文术语
-   │
-   └─ generator.py  抽取式（默认）或调用大模型生成并标注 [编号] 出处
+# 正文
 ```
 
-为什么默认用**字符二元组**而不是分词器？因为中文专业词（"输液泵""蠕动泵""阻塞报警"）
-用字符 bigram 就能召回，不需要维护词典、不需要 jieba，而且中英混排时不会把
-`mL/h`、`IEC 60601-2-24` 这类单位/标准号切坏。
+写作风格上的建议（也是这个仓库自己遵守的）写在 [CONTRIBUTING.md](CONTRIBUTING.md)，
+核心是三条：写具体的东西、说清楚每条结论的依据等级、不要用模板腔。
 
----
-
-## 知识库内容
-
-`data/raw/` 下共 **7 篇**文档（约 1.9 万字，切出 77 个片段）：
-
-| 文档 | 内容 |
-| --- | --- |
-| `01-概述与分类.md` | 定义、按场景/用途/驱动原理分类、输液泵 vs 注射泵对比 |
-| `02-工作原理与关键部件.md` | 蠕动泵/注射泵/弹性泵原理、关键部件失效点、按键连击、人因设计 |
-| `03-临床使用与操作规范.md` | 预案、标识、核对、独立双人核对、五个正确、风险自查表 |
-| `04-常见报警与故障排查.md` | 气泡/阻塞/注射器/门锁/电池/软件报警的排查思路与分级处置 |
-| `05-风险与不良事件.md` | 过量/输注不足、四类根因、FDA 已报告问题、法规术语 |
-| `06-维护保养与质量控制.md` | 清洁消毒、电池管理、PM 项目、JJF 1259 校准、不确定度 |
-| `07-术语表与标准法规.md` | 中英术语对照、参数单位与换算、中外标准、不良事件上报 |
-
----
-
-## 项目结构
+## 目录结构
 
 ```
-infusion-pump-rag/
-├── data/raw/                     # 知识库语料（Markdown）
-├── index/kb_index.json           # 预构建索引（可直接用）
-├── infusion_rag/
-│   ├── config.py                 # 路径 / 分块 / 向量 / 大模型配置
-│   ├── tokenizer.py              # 中英混排分词
-│   ├── synonyms.py               # 查询扩展用的中英对照词表
-│   ├── chunker.py                # 标题感知分块（含表格处理）
-│   ├── embedder.py               # TF-IDF（标准库）+ sentence-transformers
-│   ├── store.py                  # 索引序列化
-│   ├── retriever.py              # 检索 + RRF 融合 + 加权
-│   ├── generator.py              # 抽取式 / 大模型生成
-│   ├── pipeline.py               # 串起整条流水线
-│   ├── cli.py                    # 命令行
-│   └── server.py                 # 网页界面（标准库 http.server）
-├── scripts/build_index.py        # 构建索引的便捷脚本
-├── tests/test_rag.py             # 单元测试（14 项）
-├── pyproject.toml
-├── requirements.txt              # 核心零依赖（说明文件）
-└── requirements-optional.txt     # 可选的语义向量后端
+data/raw/            知识库语料（8 篇 Markdown）
+index/               预构建索引（clone 后可直接用）
+eval/questions.jsonl 45 条人工标注评测集
+infusion_rag/        检索与界面实现
+docs/                架构说明、编制说明、评测报告
+tests/               77 项单元测试
 ```
 
----
+## 已知局限
 
-## 数据来源
+不打算藏着的几件事：
 
-知识库内容整理、翻译并重述自以下公开资料（每篇文档末尾也标注了对应来源）：
+- **BM25 参数没有调过**，`k1=1.2, b=0.75` 是文献常见默认值。
+- **BM25 打分是 O(片段数 × 查询词数)**，没有用倒排表。几十到几千个片段没问题，
+  上万就需要先改这里。
+- **没有增量索引**，改一个文件要全量重建。当前规模下一秒内完成。
+- **同义词表是手写的**，只覆盖这份语料里出现的概念，换语料要重写。
+- **评测集由作者标注**，足以发现明显回归，不足以支撑精细的结论。
+- **中文不良事件的数据很有限**，NMPA 公开报告的颗粒度到不了按品种细分。
 
-- FDA · [What Is an Infusion Pump?](https://www.fda.gov/medical-devices/infusion-pumps/what-infusion-pump)
-- FDA · [Infusion Pump: Glossary](https://www.fda.gov/medical-devices/infusion-pumps/infusion-pump-glossary)
-- FDA · [Examples of Reported Infusion Pump Problems](https://www.fda.gov/medical-devices/infusion-pumps/examples-reported-infusion-pump-problems)
-- FDA · [Infusion Pump Risk Reduction Strategies for Clinicians](https://www.fda.gov/medical-devices/infusion-pumps/infusion-pump-risk-reduction-strategies-clinicians)
-- [JJF 1259-2010《医用注射泵和输液泵校准规范》](https://www.ndls.org.cn/standard/detail/b8b100eae987ffddcc3bddfd720d4a7e)（国家数字标准馆）
-- [IEC 60601-2-24 标准更新说明](https://ewh.ieee.org/r6/ocs/pses/IEC%2060601-2%2024%20standard%20update%20requirements%20presentation.pdf)
-- [对《医用注射泵和输液泵校准规范》(JJF 1259-2010) 的理解及建议](https://opaj.napstic.cn/periodicalArticle/0120170705974410)
+完整列表在 [docs/architecture.md](docs/architecture.md) 末尾。
 
----
+## 参与贡献
 
-## 免责声明
+内容纠错最有价值 —— 这个仓库的可用性取决于内容准不准。
+纠错请用 [内容纠错模板](https://github.com/Mio-sheep/infusion-pump-rag/issues/new?template=content-correction.yml)，
+里面会问你要依据；没有依据的纠错没法判断该不该改。
+改动检索请附上 `eval` 前后的对比。细节见 [CONTRIBUTING.md](CONTRIBUTING.md)。
 
-- 本项目为**软件工程与检索技术的学习示例**，不是医疗器械软件，也不是临床决策支持系统。
-- 知识库内容源自公开资料的整理与重述，可能存在滞后、遗漏或理解偏差；**标准编号与版本请以现行有效文本为准**。
-- 任何临床操作、设备维护与计量校准，请以**设备说明书、现行标准、所在机构规章制度**为准。
-- 作者不对因使用本项目内容而产生的任何后果承担责任。
+## 许可与免责
 
----
-
-## License
-
-代码以 [MIT License](LICENSE) 发布。知识库文档的来源与使用限制见 LICENSE 末尾说明。
+代码以 [MIT](LICENSE) 发布。知识库文档整理自公开资料，每篇标注了来源。
+本项目不是医疗器械软件，不构成临床依据，作者不对使用其内容产生的后果负责。

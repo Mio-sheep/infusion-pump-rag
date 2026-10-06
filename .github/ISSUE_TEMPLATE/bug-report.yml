@@ -1,0 +1,48 @@
+name: 程序 Bug
+description: 检索、索引、命令行或网页界面出了问题
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: 现象
+      description: 你做了什么，期望什么，实际发生了什么
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: 复现步骤
+      render: shell
+      placeholder: |
+        python -m infusion_rag.cli build
+        python -m infusion_rag.cli search "阻塞报警" -k 3
+    validations:
+      required: true
+
+  - type: textarea
+    id: output
+    attributes:
+      label: 完整输出或报错
+      render: shell
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: 版本
+      description: "`python -m infusion_rag.cli stats` 的前两行，或 commit SHA"
+    validations:
+      required: true
+
+  - type: input
+    id: env
+    attributes:
+      label: 环境
+      description: 操作系统 + Python 版本；如果用了 --dense，也写上 sentence-transformers 版本
+      placeholder: Windows 11 / Python 3.11.9
+    validations:
+      required: true

@@ -24,6 +24,9 @@ htmlcov/
 *.swp
 .DS_Store
 
-# 本地密钥（大模型 API Key 等，千万别提交）
+# 本地密钥（大模型 API Key 等）
 .env
 .env.local
+
+# 稠密向量索引体积大且可重建，不入库；kb_index.json 会入库，方便 clone 后直接用
+index/*.dense.json

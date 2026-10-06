@@ -2,32 +2,61 @@ name: CI
 
 on:
   push:
-    branches: [main, master]
+    branches: [main]
   pull_request:
   workflow_dispatch:
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
+    name: 测试 Python ${{ matrix.python-version }}
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         python-version: ["3.9", "3.11", "3.12"]
 
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
 
-      # 核心功能零依赖，直接跑测试
-      - name: Run unit tests
-        run: python -m unittest discover -s tests -v
+      # 核心链路零第三方依赖，所以这里刻意不装任何东西 ——
+      # 如果哪天测试需要额外依赖，说明"零依赖"这个承诺被破坏了。
+      - name: 单元测试
+        run: python -m unittest discover -s tests -t . -v
 
-      - name: Rebuild index from scratch
+      - name: 从零重建索引
         run: python -m infusion_rag.cli build
 
-      - name: Smoke-test retrieval
+      - name: 确认预构建索引与语料一致
+        run: |
+          git diff --exit-code -- index/kb_index.json \
+            || { echo "::error::index/kb_index.json 与 data/raw 不同步，请重新运行 build 并提交"; exit 1; }
+
+      - name: 检索冒烟测试
         run: |
           python -m infusion_rag.cli stats
           python -m infusion_rag.cli search "阻塞报警怎么排查" -k 3 --no-text
           python -m infusion_rag.cli ask "JJF 1259 是什么标准" --no-llm -k 3
+
+      - name: 评测集跑分
+        run: python -m infusion_rag.cli eval --failures 5
+
+  lint:
+    name: 静态检查
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install ruff mypy
+      - run: ruff check .
+      - run: ruff format --check .
+      - run: mypy

@@ -1,0 +1,49 @@
+// 评测集：一行一个问题。
+// expect 里 doc 是文件名去掉 .md，section 是小节标题的子串（两者都要命中才算对）。
+// 判定标准刻意不绑定 chunk_id —— 重新分块后 chunk_id 会全变，小节标题是稳定的。
+
+{"id":"q001","question":"蠕动泵的流量是由什么决定的","expect":[{"doc":"01-设备分类与选型","section":"蠕动泵"}]}
+{"id":"q002","question":"注射泵为什么在小流量下更准","expect":[{"doc":"01-设备分类与选型","section":"精度差异"},{"doc":"02-流量精度从哪来","section":"低流速"}]}
+{"id":"q003","question":"弹性泵 elastomeric pump 有什么特点","expect":[{"doc":"01-设备分类与选型","section":"弹性泵"},{"doc":"08-术语与速查"}]}
+{"id":"q004","question":"smart pump 智能泵是什么","expect":[{"doc":"01-设备分类与选型","section":"智能泵"},{"doc":"04-临床使用与用药安全","section":"药物库"}]}
+{"id":"q005","question":"买输液泵的时候应该看哪些参数","expect":[{"doc":"01-设备分类与选型","section":"选型"}]}
+{"id":"q006","question":"PCA 镇痛泵有什么特别需要注意的","expect":[{"doc":"01-设备分类与选型","section":"按用途分"},{"doc":"04-临床使用与用药安全"}]}
+{"id":"q007","question":"为什么输液泵必须用配套的专用管路","expect":[{"doc":"01-设备分类与选型","section":"蠕动泵"},{"doc":"02-流量精度从哪来","section":"流量公式"}]}
+{"id":"q008","question":"阻塞解除后为什么会有额外的一次性输入","expect":[{"doc":"02-流量精度从哪来","section":"阻塞与阻塞后的团注"}]}
+{"id":"q009","question":"启动延迟是什么意思","expect":[{"doc":"02-流量精度从哪来","section":"启动延迟"}]}
+{"id":"q010","question":"KVO 是什么功能","expect":[{"doc":"02-流量精度从哪来","section":"其他几个相关的设计点"}]}
+{"id":"q011","question":"气泡报警反复响应该怎么查","expect":[{"doc":"03-报警与故障排查","section":"气泡报警"}]}
+{"id":"q012","question":"阻塞报警怎么排查","expect":[{"doc":"03-报警与故障排查","section":"阻塞报警"}]}
+{"id":"q013","question":"上游阻塞和下游阻塞有什么区别","expect":[{"doc":"03-报警与故障排查","section":"阻塞报警"},{"doc":"02-流量精度从哪来"}]}
+{"id":"q014","question":"注射器装错了规格会怎么样","expect":[{"doc":"03-报警与故障排查","section":"注射器相关"},{"doc":"04-临床使用与用药安全","section":"换注射器"}]}
+{"id":"q015","question":"泵门外壳有裂纹还能继续用吗","expect":[{"doc":"03-报警与故障排查","section":"门与锁扣"},{"doc":"05-风险与不良事件","section":"必须停用"}]}
+{"id":"q016","question":"泵半夜自己关机了电池也换了怎么回事","expect":[{"doc":"03-报警与故障排查","section":"电池与电源"},{"doc":"05-风险与不良事件","section":"三、电池"}]}
+{"id":"q017","question":"按键连击 key bounce 会有什么后果","expect":[{"doc":"03-报警与故障排查","section":"软件与按键"},{"doc":"05-风险与不良事件","section":"软件与人机界面"},{"doc":"08-术语与速查"}]}
+{"id":"q018","question":"什么样的情况必须把泵停用隔离","expect":[{"doc":"03-报警与故障排查","section":"上报与隔离"},{"doc":"05-风险与不良事件","section":"必须停用"}]}
+{"id":"q019","question":"报警一直误报有什么危害","expect":[{"doc":"05-风险与不良事件","section":"报警自身失效"}]}
+{"id":"q020","question":"over-infusion 是什么意思","expect":[{"doc":"05-风险与不良事件","section":"后果的两种形态"},{"doc":"08-术语与速查"}]}
+{"id":"q021","question":"输液泵出问题一般是哪几个原因","expect":[{"doc":"05-风险与不良事件","section":"四种根因"}]}
+{"id":"q022","question":"泵上插电的时候有电击感和火花怎么办","expect":[{"doc":"05-风险与不良事件","section":"电气安全"}]}
+{"id":"q023","question":"泵坏了为什么要上报","expect":[{"doc":"05-风险与不良事件","section":"停用并上报"},{"doc":"07-标准与法规","section":"上报"}]}
+{"id":"q024","question":"五个正确是哪五个","expect":[{"doc":"04-临床使用与用药安全","section":"核对"},{"doc":"08-术语与速查"}]}
+{"id":"q025","question":"独立双人核对应该怎么做","expect":[{"doc":"04-临床使用与用药安全","section":"独立双人核对"},{"doc":"08-术语与速查"}]}
+{"id":"q026","question":"哪些药属于高危药品需要双人核对","expect":[{"doc":"04-临床使用与用药安全","section":"独立双人核对"},{"doc":"04-临床使用与用药安全","section":"高危药品"}]}
+{"id":"q027","question":"药物库 drug library 能防止什么样的错误","expect":[{"doc":"04-临床使用与用药安全","section":"药物库"},{"doc":"01-设备分类与选型","section":"智能泵"}]}
+{"id":"q028","question":"换药袋的时候要注意什么","expect":[{"doc":"04-临床使用与用药安全","section":"换泵、换管、换袋"}]}
+{"id":"q029","question":"体重输错单位会怎么样","expect":[{"doc":"04-临床使用与用药安全","section":"单位"},{"doc":"08-术语与速查","section":"最容易出错"}]}
+{"id":"q030","question":"泵故障的时候高危输注怎么处理","expect":[{"doc":"04-临床使用与用药安全","section":"备用预案"}]}
+{"id":"q031","question":"输液泵可以用酒精随便擦吗","expect":[{"doc":"06-维护与计量校准","section":"日常维护"}]}
+{"id":"q032","question":"电池应该怎么维护什么时候换","expect":[{"doc":"06-维护与计量校准","section":"电池管理"}]}
+{"id":"q033","question":"预防性维护要检查哪些项目","expect":[{"doc":"06-维护与计量校准","section":"预防性维护"}]}
+{"id":"q034","question":"输液泵的流量怎么校准依据什么规范","expect":[{"doc":"06-维护与计量校准","section":"流量校准"},{"doc":"07-标准与法规","section":"中国标准"}]}
+{"id":"q035","question":"测量不确定度有哪些来源","expect":[{"doc":"06-维护与计量校准","section":"流量校准"}]}
+{"id":"q036","question":"校准不合格的设备怎么处理","expect":[{"doc":"06-维护与计量校准","section":"不合格怎么处理"}]}
+{"id":"q037","question":"JJF 1259 是什么标准","expect":[{"doc":"07-标准与法规","section":"中国标准"},{"doc":"06-维护与计量校准","section":"流量校准"}]}
+{"id":"q038","question":"IEC 60601-2-24 管的是什么","expect":[{"doc":"07-标准与法规","section":"中国标准"},{"doc":"07-标准与法规","section":"国际标准"}]}
+{"id":"q039","question":"510k 和 PMA 有什么区别","expect":[{"doc":"07-标准与法规","section":"监管术语"}]}
+{"id":"q040","question":"MAUDE 数据库是什么","expect":[{"doc":"07-标准与法规","section":"监管术语"}]}
+{"id":"q041","question":"不良事件达到什么程度需要上报","expect":[{"doc":"07-标准与法规","section":"监管术语"},{"doc":"07-标准与法规","section":"上报"}]}
+{"id":"q042","question":"0.1 微克每公斤每分钟怎么换算成毫升每小时","expect":[{"doc":"08-术语与速查","section":"换算例子"}]}
+{"id":"q043","question":"VTBI 是什么","expect":[{"doc":"08-术语与速查","section":"参数与单位"},{"doc":"08-术语与速查","section":"术语对照"}]}
+{"id":"q044","question":"泵能开机就说明它没问题吗","expect":[{"doc":"08-术语与速查","section":"最容易出错"},{"doc":"05-风险与不良事件","section":"软件与人机界面"}]}
+{"id":"q045","question":"清洗泵的时候要注意什么","expect":[{"doc":"06-维护与计量校准","section":"日常维护"}]}
