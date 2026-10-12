@@ -21,6 +21,7 @@ from .generator import extractive_answer, llm_answer
 from .retriever import MODES, Hit, Retriever
 from .store import KnowledgeIndex
 from .tokenizer import tokenize_for_index
+from .vectorstore import ChromaStore
 
 __version__ = "1.2.0"
 
@@ -37,7 +38,7 @@ class InfusionPumpRAG:
     ) -> None:
         self.index = index
         self.index_path = Path(index_path) if index_path else None
-        self.retriever = Retriever(index, use_synonyms=use_synonyms)
+        self.retriever = Retriever(index, use_synonyms=use_synonyms, index_path=self.index_path)
 
     # ================================================================== #
     # 构建 / 加载
@@ -53,6 +54,7 @@ class InfusionPumpRAG:
         dense: bool = False,
         dense_model: str = DEFAULT_MODEL,
         dense_provider: str = "local",
+        vector_store: str = "json",
         verbose: bool = False,
     ) -> InfusionPumpRAG:
         corpus_dir = Path(corpus_dir or DEFAULT_CORPUS_DIR)
@@ -81,13 +83,26 @@ class InfusionPumpRAG:
         dense_vectors = None
         dense_model_name = ""
         dense_provider_used = ""
+        vector_store_used = ""
         if dense:
             log(f"[3/4] 生成稠密向量（provider={dense_provider}，model={dense_model}）")
             encoder = create_dense_encoder(dense_provider, dense_model)
-            dense_vectors = encoder.encode([c.text for c in chunks])
+            encoded = encoder.encode([c.text for c in chunks])
             dense_model_name = encoder.model_name
             dense_provider_used = encoder.name
             log(f"      维度 {encoder.dim}")
+
+            if vector_store == "chroma":
+                # 向量交给 Chroma 落盘，主索引 JSON 里不再存，
+                # 检索时按 meta 里的 chroma_dir 找回来
+                chroma_dir = index_path.parent / "chroma"
+                store = ChromaStore(chroma_dir)
+                store.reset(chunks, encoded)
+                vector_store_used = "chroma"
+                log(f"      已写入 Chroma（{len(store)} 条，目录 {chroma_dir.name}/）")
+            else:
+                dense_vectors = encoded
+                vector_store_used = "json"
         else:
             log("[3/4] 跳过稠密向量（未指定 --dense）")
 
@@ -108,6 +123,10 @@ class InfusionPumpRAG:
                 "documents": [doc.meta.doc_id for doc in documents],
                 "dense_model": dense_model_name,
                 "dense_provider": dense_provider_used,
+                "vector_store": vector_store_used,
+                "chroma_dir": str((index_path.parent / "chroma").name)
+                if vector_store_used == "chroma"
+                else "",
                 "chunk_config": chunk_cfg.to_dict(),
                 "bm25_config": bm25_cfg.to_dict(),
             },

@@ -1,14 +1,21 @@
-# 可选项：语义向量检索。
-#
-# 不装这个文件也能用 —— 默认的 BM25 已经覆盖术语、编号、标准号这类查询，
-# 而且零依赖、完全离线。
+# 可选项：按需挑着装，不装也能用 —— 默认的 BM25 零依赖、完全离线，
+# 已经覆盖术语、编号、标准号这类查询。
 #
 # 语义向量有用的场景是"用户不知道术语、用自己的话问"，例如
-# 问"泵一直响个不停"而不是"报警"。装好后这样用：
-#
+# 问"泵一直响个不停"而不是"报警"。
+
+# ① 向量走硅基流动 API（不下载本地模型），最轻量的开启方式：
+#     pip install openai
+#     python -m infusion_rag.cli build --dense --dense-provider siliconflow
+openai>=1.40
+
+# ② 本地跑 embedding 模型（不调 API、完全离线），模型约几百 MB：
+#     pip install sentence-transformers
 #     python -m infusion_rag.cli build --dense
-#     python -m infusion_rag.cli search "泵一直响个不停" --mode hybrid
-#
-# 注意：--dense 会在 index/ 下额外生成 kb_index.dense.json，体积较大，
-# 该文件已被 gitignore，可以随时删除并重建。
 sentence-transformers>=2.2
+
+# ③ Chroma 向量数据库。语料上了规模（几万片段以上）再装，
+#    小语料用默认的 JSON + 暴力扫描反而更快：
+#     pip install chromadb
+#     python -m infusion_rag.cli build --dense --dense-provider siliconflow --vector-store chroma
+chromadb>=1.0

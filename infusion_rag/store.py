@@ -69,10 +69,12 @@ class KnowledgeIndex:
                 f"请重新运行：python -m infusion_rag.cli build"
             )
         dense_vectors = None
-        dense_model = ""
+        # 模型名优先从向量文件里读；向量在 Chroma 那样的外部存储时，
+        # 从主索引的 meta 里读（构建时写进去了）
+        dense_model = str(payload.get("meta", {}).get("dense_model", ""))
         if dense and dense.get("vectors"):
             dense_vectors = [[float(x) for x in row] for row in dense["vectors"]]
-            dense_model = str(dense.get("model_name", ""))
+            dense_model = str(dense.get("model_name") or dense_model)
 
         return cls(
             chunks=[Chunk.from_dict(c) for c in payload["chunks"]],

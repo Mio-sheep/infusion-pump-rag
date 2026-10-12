@@ -18,6 +18,8 @@ RRF 只看名次不看分数，不需要调参，是这个场景下更稳的选�
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from .chunker import Chunk
 from .dense import cosine, create_dense_encoder
 from .store import KnowledgeIndex
@@ -84,12 +86,17 @@ class Retriever:
         top_k: int = 4,
         use_synonyms: bool = True,
         rrf_k: int = RRF_K,
+        index_path: Path | None = None,
     ) -> None:
         self.index = index
         self.top_k = top_k
         self.use_synonyms = use_synonyms
         self.rrf_k = rrf_k
+        # Chroma 目录是"索引文件旁边的 chroma/"，需要知道索引文件在哪
+        self.index_path = index_path
         self._encoder = None
+        self._chroma = None
+        self.candidates = DEFAULT_CANDIDATES
 
     # ------------------------------------------------------------------ #
     def _encode_query(self, query: str) -> list[str]:
@@ -177,10 +184,44 @@ class Retriever:
         ]
 
     def _dense_cosine(self, query: str) -> list[float]:
+        """稠密这一路的打分。
+
+        两种存储，同一套返回格式（按片段顺序的分数列表）：
+          - json：向量在内存里，逐个算余弦（小语料的最简方案）
+          - chroma：向量在 Chroma 里，查最近邻，再按 chunk_id 对回位置
+        """
+        if self.index.meta.get("vector_store") == "chroma":
+            return self._dense_via_chroma(query)
         if not self.index.has_dense or not self.index.dense_vectors:
             return []
         query_vec = self._dense_encoder().encode([query])[0]
         return [cosine(query_vec, vec) for vec in self.index.dense_vectors]
+
+    def _dense_via_chroma(self, query: str) -> list[float]:
+        store = self._chroma_store()
+        if len(store) != len(self.index.chunks):
+            raise RuntimeError(
+                f"Chroma 里的向量数（{len(store)}）和索引片段数"
+                f"（{len(self.index.chunks)}）不一致，请重新 build。"
+            )
+        query_vec = self._dense_encoder().encode([query])[0]
+        scores = [0.0] * len(self.index.chunks)
+        position_of = {c.chunk_id: i for i, c in enumerate(self.index.chunks)}
+        # 多查一些（够融合用的候选池），其余位置保持 0 分
+        for chunk_id, similarity in store.query(query_vec, top_k=self.candidates):
+            position = position_of.get(chunk_id)
+            if position is not None:
+                scores[position] = similarity
+        return scores
+
+    def _chroma_store(self):
+        if self._chroma is None:
+            from .vectorstore import ChromaStore
+
+            directory = self.index.meta.get("chroma_dir", "chroma")
+            base = self.index_path.parent if self.index_path else Path()
+            self._chroma = ChromaStore(base / directory)
+        return self._chroma
 
     # ------------------------------------------------------------------ #
     def explain(self, query: str, mode: str = "bm25", top_k: int = 5) -> str:
