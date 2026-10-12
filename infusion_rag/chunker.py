@@ -20,6 +20,7 @@ from pathlib import Path
 
 from .config import ChunkConfig
 from .frontmatter import DocMeta, Source, split_front_matter
+from .pdf import PdfError, pdf_to_markdown
 
 _HEADING_RE = re.compile(r"^(#{1,6})\s+(.*?)\s*$")
 _TABLE_SEP_RE = re.compile(r"^\|[\s:\-|]+\|$")
@@ -31,7 +32,7 @@ _SOURCE_HEADING_RE = re.compile(
     r"(参考来源|资料来源|主要来源|出处|参考文献|references?|sources?)", re.I
 )
 
-SUPPORTED_SUFFIXES = (".md", ".markdown", ".txt")
+SUPPORTED_SUFFIXES = (".md", ".markdown", ".txt", ".pdf")
 
 
 @dataclass
@@ -273,7 +274,14 @@ def _sections(body: str) -> tuple[str, list[tuple[str, str]]]:
 
 def parse_document(path: Path, corpus_root: Path, cfg: ChunkConfig) -> Document:
     """读一个文件，返回它的元数据和片段。"""
-    raw = path.read_text(encoding="utf-8")
+    if path.suffix.lower() == ".pdf":
+        # PDF 先转成伪 Markdown（标题从字号推断），之后走同一条切块链路
+        try:
+            raw = pdf_to_markdown(path)
+        except PdfError as exc:
+            raise PdfError(f"{path.name}: {exc}") from exc
+    else:
+        raw = path.read_text(encoding="utf-8")
     meta_dict, body = split_front_matter(raw)
 
     doc_id = path.stem

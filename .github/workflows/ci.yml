@@ -50,6 +50,19 @@ jobs:
       - name: 评测集跑分
         run: python -m infusion_rag.cli eval --failures 5
 
+  pdf:
+    name: PDF 语料（可选依赖）
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      # PDF 支持依赖可选的 pypdf；这个 job 专门验证装上之后一切正常，
+      # 没装时 tests/test_pdf.py 整体跳过，核心链路仍是零依赖。
+      - run: pip install pypdf
+      - run: python -m unittest tests.test_pdf -v
+
   lint:
     name: 静态检查
     runs-on: ubuntu-latest

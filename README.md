@@ -231,7 +231,10 @@ python -m infusion_rag.cli search "泵一直响个不停" --mode hybrid
 
 ## 换成你自己的知识库
 
-把 Markdown 丢进 `data/raw/`，重新 `build`，完事。
+把 Markdown 丢进 `data/raw/`，重新 `build`，完事。PDF 也行
+（需 `pip install pypdf`）：标题层级从字号推断，转成内部格式后
+和 Markdown 走完全相同的分块与打分链路；扫描版 PDF（无文字层）
+会被明确提示需要 OCR，不会悄悄产出空索引。
 
 文件支持一段可选的前置元数据：
 
@@ -254,7 +257,7 @@ sources:
 ## 目录结构
 
 ```
-data/raw/            知识库语料（11 篇 Markdown）
+data/raw/            知识库语料（11 篇 Markdown；也支持 PDF，见上文）
 index/               预构建索引（clone 后可直接用）
 eval/questions.jsonl 58 条人工标注评测集
 infusion_rag/        检索、换算器与界面实现

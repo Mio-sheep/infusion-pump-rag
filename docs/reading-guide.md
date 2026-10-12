@@ -138,6 +138,16 @@ RRF 融合那十几行值得反复看——它回答了"两把量纲不同的尺
 
 建议**只读 Python 部分**，内嵌的那一大段 HTML 当黑盒。
 
+### 可选站：pdf.py（约 190 行，需要 pypdf）
+
+**讲什么**：把 PDF 转成伪 Markdown，接进上面的切块链路。
+
+**知识点**：第三方库的可选导入（`try/except ImportError`，不装也能跑）、
+回调函数（pypdf 的 `visitor_text`，每段文字回调一次）、
+从噪声数据里推断结构（字号聚类出标题层级）。
+
+看懂的标志：能回答"为什么转成 Markdown 再切块，而不是为 PDF 单独写一套"。
+
 ## architecture.md 值得单独读一遍
 
 [architecture.md](architecture.md) 里写的是每个设计决定的"为什么"：

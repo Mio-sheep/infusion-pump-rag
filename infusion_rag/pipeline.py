@@ -23,7 +23,7 @@ from .store import KnowledgeIndex
 from .tokenizer import tokenize_for_index
 from .vectorstore import ChromaStore
 
-__version__ = "1.2.0"
+__version__ = "1.4.0"
 
 
 class InfusionPumpRAG:

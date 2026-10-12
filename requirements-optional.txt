@@ -19,3 +19,9 @@ sentence-transformers>=2.2
 #     pip install chromadb
 #     python -m infusion_rag.cli build --dense --dense-provider siliconflow --vector-store chroma
 chromadb>=1.0
+
+# ④ PDF 语料。装了之后 .pdf 也能直接丢进 data/raw/，
+#    标题层级从字号推断，其余链路与 Markdown 完全一致：
+#     pip install pypdf
+#     python -m infusion_rag.cli build
+pypdf>=4.0
