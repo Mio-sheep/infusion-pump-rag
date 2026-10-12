@@ -188,14 +188,30 @@ python -m infusion_rag.cli ask "气泡报警可能是什么原因"
 
 ## 语义检索（可选）
 
+三种开启方式，按需选一种（都不装也能用，见上文 BM25）：
+
 ```bash
-pip install -r requirements-optional.txt
+# ① 向量走 embedding API，最轻量：只装 openai 客户端，不下载模型
+pip install openai
+export RAG_EMBED_API_KEY="sk-xxx"    # https://cloud.siliconflow.cn 申请
+python -m infusion_rag.cli build --dense --dense-provider siliconflow
+
+# ② 本地跑 embedding 模型，完全离线，模型约几百 MB
+pip install sentence-transformers
 python -m infusion_rag.cli build --dense
+
+# ③ 语料上了规模（几万片段以上），向量改存 Chroma 向量库
+pip install chromadb
+python -m infusion_rag.cli build --dense --dense-provider siliconflow --vector-store chroma
+```
+
+```bash
 python -m infusion_rag.cli search "泵一直响个不停" --mode hybrid
 ```
 
-`--dense` 会把向量写到 `index/kb_index.dense.json`，这个文件体积大且可重建，
-所以 gitignore 掉了，主索引 `kb_index.json` 保持小而可读、随仓库一起提交。
+向量写到 `index/kb_dense_index.json`（或 Chroma 的本地数据目录），
+体积大且可随时重建，所以 gitignore 掉了；主索引 `kb_index.json`
+保持小而可读、随仓库一起提交。
 
 ## 命令
 

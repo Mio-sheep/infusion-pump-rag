@@ -3,6 +3,31 @@
 按 [语义化版本](https://semver.org/lang/zh-CN/) 编号。索引格式变更会写在对应版本里，
 因为格式不匹配时程序会拒绝加载旧索引。
 
+## 1.3.0 — 2026-10-12
+
+围绕"混合检索真正可用"和"语料上量的准备"。
+
+### 稠密向量支持走 embedding API
+
+- 新增 `infusion_rag/dense.py`，`--dense-provider siliconflow` 走硅基流动的
+  embedding 接口（默认模型 BAAI/bge-m3），只需 `pip install openai`，
+  不用再下载几百 MB 的本地模型。
+- 之前稠密向量只能靠 sentence-transformers 本地跑，门槛高，
+  导致 `--mode hybrid` 实际上很少被打开。
+- 密钥通过环境变量 `RAG_EMBED_API_KEY` 提供，不落盘。
+
+### Chroma 向量库后端（可选）
+
+- `--vector-store chroma` 把稠密向量存进 Chroma，替代默认的 JSON 全量加载。
+- 动机是规模的：JSON 方案要一次读全部向量进内存，几十到几百个片段没问题，
+  几万片段就不合适了。小语料继续用默认 JSON 更简单。
+- 索引元数据记录 `dense_provider` 和 `vector_store`，检索端按需加载。
+
+### 文档
+
+- 新增 `docs/reading-guide.md` 源码导读：按难度排序的阅读路线，
+  每一站标注对应的 Python 知识点。
+
 ## 1.2.0 — 2026-02-28
 
 往"实用"方向补的三块。
