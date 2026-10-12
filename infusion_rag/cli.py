@@ -78,8 +78,14 @@ def build_parser() -> argparse.ArgumentParser:
     # -- build ---------------------------------------------------------- #
     p = sub.add_parser("build", help="从 data/raw 构建索引")
     p.add_argument("--corpus", default=str(DEFAULT_CORPUS_DIR), help="语料目录")
-    p.add_argument("--dense", action="store_true", help="同时生成稠密向量（需要可选依赖）")
+    p.add_argument("--dense", action="store_true", help="同时生成稠密向量（本地模型或 --dense-provider）")
     p.add_argument("--dense-model", default=DEFAULT_MODEL, help="稠密向量模型")
+    p.add_argument(
+        "--dense-provider",
+        default="local",
+        choices=["local", "siliconflow"],
+        help="稠密向量来源：local=本地 sentence-transformers（默认），siliconflow=硅基流动 API",
+    )
     p.add_argument("--max-chars", type=int, default=ChunkConfig.max_chars)
     p.add_argument("--overlap", type=int, default=ChunkConfig.overlap_chars)
     p.add_argument(
@@ -147,6 +153,7 @@ def main(argv: list[str] | None = None) -> int:
                 bm25_cfg=BM25Config(k1=args.k1, b=args.b, heading_weight=args.heading_weight),
                 dense=args.dense,
                 dense_model=args.dense_model,
+                dense_provider=args.dense_provider,
                 verbose=True,
             )
         except RuntimeError as exc:

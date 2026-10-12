@@ -15,7 +15,7 @@ from .config import (
     ChunkConfig,
     LLMConfig,
 )
-from .dense import DEFAULT_MODEL, DenseEncoder
+from .dense import DEFAULT_MODEL, create_dense_encoder
 from .eval import EvalReport, evaluate, load_questions
 from .generator import extractive_answer, llm_answer
 from .retriever import MODES, Hit, Retriever
@@ -52,6 +52,7 @@ class InfusionPumpRAG:
         bm25_cfg: BM25Config | None = None,
         dense: bool = False,
         dense_model: str = DEFAULT_MODEL,
+        dense_provider: str = "local",
         verbose: bool = False,
     ) -> InfusionPumpRAG:
         corpus_dir = Path(corpus_dir or DEFAULT_CORPUS_DIR)
@@ -79,11 +80,13 @@ class InfusionPumpRAG:
 
         dense_vectors = None
         dense_model_name = ""
+        dense_provider_used = ""
         if dense:
-            log(f"[3/4] 生成稠密向量（{dense_model}）")
-            encoder = DenseEncoder(dense_model)
+            log(f"[3/4] 生成稠密向量（provider={dense_provider}，model={dense_model}）")
+            encoder = create_dense_encoder(dense_provider, dense_model)
             dense_vectors = encoder.encode([c.text for c in chunks])
             dense_model_name = encoder.model_name
+            dense_provider_used = encoder.name
             log(f"      维度 {encoder.dim}")
         else:
             log("[3/4] 跳过稠密向量（未指定 --dense）")
@@ -104,6 +107,7 @@ class InfusionPumpRAG:
                 "vocab_size": len(bm25.terms),
                 "documents": [doc.meta.doc_id for doc in documents],
                 "dense_model": dense_model_name,
+                "dense_provider": dense_provider_used,
                 "chunk_config": chunk_cfg.to_dict(),
                 "bm25_config": bm25_cfg.to_dict(),
             },

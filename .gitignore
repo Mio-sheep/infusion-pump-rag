@@ -28,5 +28,9 @@ htmlcov/
 .env
 .env.local
 
+# 走 API embedding 的实验索引：向量可随时重建，且依赖本机密钥，不入库
+index/kb_dense_index.json
+index/kb_dense_index.dense.json
+
 # 稠密向量索引体积大且可重建，不入库；kb_index.json 会入库，方便 clone 后直接用
 index/*.dense.json

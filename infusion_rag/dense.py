@@ -67,3 +67,66 @@ def sentence_transformers_available() -> bool:
     except ImportError:
         return False
     return True
+
+
+# --------------------------------------------------------------------------- #
+# 可选：走 embedding API（默认硅基流动，OpenAI 兼容接口）
+# --------------------------------------------------------------------------- #
+class SiliconFlowEmbedder:
+    """不下载本地模型，直接调 embedding API。
+
+    什么时候选它：
+      - 机器跑不动本地模型；
+      - 或者只是想快速验证语义检索值不值得上。
+
+    密钥从环境变量 SILICONFLOW_API_KEY 读取——**不要写进代码**，
+    这个仓库是公开的，key 进了仓库就得全平台重置。
+    """
+
+    name = "siliconflow"
+    DEFAULT_BASE_URL = "https://api.siliconflow.cn/v1"
+
+    def __init__(self, model_name: str = "BAAI/bge-m3", batch_size: int = 16) -> None:
+        import os
+
+        api_key = os.environ.get("SILICONFLOW_API_KEY", "").strip()
+        if not api_key:
+            raise RuntimeError(
+                "未设置环境变量 SILICONFLOW_API_KEY。"
+                "到 https://cloud.siliconflow.cn 申请后设置：\n"
+                '    [Environment]::SetEnvironmentVariable("SILICONFLOW_API_KEY", "sk-...", "User")'
+            )
+
+        from openai import OpenAI
+
+        self.model_name = model_name
+        self.batch_size = batch_size
+        self.dim = 0  # 第一次真实调用后才知道，先占位
+        self._client = OpenAI(api_key=api_key, base_url=self.DEFAULT_BASE_URL)
+
+    def encode(self, texts: list[str]) -> list[list[float]]:
+        vectors: list[list[float]] = []
+        for i in range(0, len(texts), self.batch_size):
+            batch = texts[i : i + self.batch_size]
+            resp = self._client.embeddings.create(input=batch, model=self.model_name)
+            vectors.extend([float(x) for x in item.embedding] for item in resp.data)
+        if not self.dim and vectors:
+            self.dim = len(vectors[0])
+        return vectors
+
+    def state(self) -> dict:
+        return {"model_name": self.model_name, "provider": self.name}
+
+
+def create_dense_encoder(provider: str, model_name: str = DEFAULT_MODEL):
+    """按 provider 建对应的稠密向量后端。
+
+    provider = "local"        本地 sentence-transformers 模型
+    provider = "siliconflow"  硅基流动 API
+    """
+    provider = (provider or "local").lower()
+    if provider == "siliconflow":
+        return SiliconFlowEmbedder(model_name)
+    if provider == "local":
+        return DenseEncoder(model_name)
+    raise ValueError(f"未知的稠密向量提供方：{provider}")

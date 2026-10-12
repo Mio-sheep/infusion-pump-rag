@@ -19,7 +19,7 @@ RRF 只看名次不看分数，不需要调参，是这个场景下更稳的选�
 from __future__ import annotations
 
 from .chunker import Chunk
-from .dense import DenseEncoder, cosine
+from .dense import cosine, create_dense_encoder
 from .store import KnowledgeIndex
 from .synonyms import expand_query
 from .tokenizer import tokenize_for_index
@@ -89,20 +89,23 @@ class Retriever:
         self.top_k = top_k
         self.use_synonyms = use_synonyms
         self.rrf_k = rrf_k
-        self._encoder: DenseEncoder | None = None
+        self._encoder = None
 
     # ------------------------------------------------------------------ #
     def _encode_query(self, query: str) -> list[str]:
         tokens = tokenize_for_index(query)
         return expand_query(tokens, query) if self.use_synonyms else tokens
 
-    def _dense_encoder(self) -> DenseEncoder:
+    def _dense_encoder(self):
         if self._encoder is None:
             if not self.index.dense_model:
                 raise RuntimeError(
                     "索引里没有稠密向量。用 `build --dense` 重建，或改用 --mode bm25。"
                 )
-            self._encoder = DenseEncoder(self.index.dense_model)
+            # 用哪个后端，是建索引时定下来记在 meta 里的；
+            # 检索时照着加载，保证问句和片段用的是同一个模型
+            provider = self.index.meta.get("dense_provider", "local")
+            self._encoder = create_dense_encoder(provider, self.index.dense_model)
         return self._encoder
 
     @staticmethod
